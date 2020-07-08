@@ -80,7 +80,7 @@ int main()
         }
     }
     string fileListsPathQuery = "../config/datalist3.txt";
-    LoadPathList(fileListsPath, fileVec);
+    LoadPathList(fileListsPathQuery, fileVec);
     vector<int> counter1,counter2,counter3;
     for(auto i = 0; i < fileVec.size(); i++) {
         counter1.push_back(0);
