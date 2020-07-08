@@ -73,7 +73,7 @@ int ImageDatabase::query(cv::Mat image){
     computeBRIEFPoint(image,image_blur,keypoints,brief_descriptors);
     db.query(brief_descriptors, ret, 4, imageset_id.size());
 
-    if (ret.size() >= 1 && ret[0].Score > 0.05) {
+    if (ret.size() >= 1 && ret[0].Score > 0.001) {
         return imageset_id[ret[0].Id];
     }
     else {

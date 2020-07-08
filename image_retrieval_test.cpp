@@ -37,6 +37,7 @@ void LoadImages(const string &strImagePath, const string &strTimesStampsPath,
 
 void LoadPathList( const string &fileListsPath, vector<string> &fileVec)
 {
+    fileVec.clear();
     if(DEBUG_INFO) std::cout << "LoadImages(): " << fileListsPath << std::endl;
     ifstream fTimes;
     fTimes.open(fileListsPath.c_str());
@@ -73,12 +74,18 @@ int main()
             LoadImages(image_path, timeStamps, imagesList);
             cout << "The size of image list is " << imagesList.size() << endl;
         }
-        for (int ni = 0; ni < 10; ni++) {
+        for (int ni = 0; ni < imagesList.size(); ni += 20) {
             cv::Mat image = cv::imread(imagesList[ni], CV_LOAD_IMAGE_UNCHANGED);
             imdb.addImage(image, i);
         }
     }
+    string fileListsPathQuery = "../config/datalist3.txt";
+    LoadPathList(fileListsPath, fileVec);
+    vector<int> counter1,counter2,counter3;
     for(auto i = 0; i < fileVec.size(); i++) {
+        counter1.push_back(0);
+        counter2.push_back(0);
+        counter3.push_back(0);
         string base_path = fileVec[i];
         string image_path = base_path + "/cam0";
         string timeStamps = base_path + "/loop.txt";
@@ -87,11 +94,19 @@ int main()
             LoadImages(image_path, timeStamps, imagesList);
             cout << "The size of image list is " << imagesList.size() << endl;
         }
-        for (int ni = 0; ni < imagesList.size(); ni++) {
+        for (int ni = 0; ni < imagesList.size(); ni += 20) {
             cv::Mat image = cv::imread(imagesList[ni], CV_LOAD_IMAGE_UNCHANGED);
             int id = imdb.query(image);
-            cout << "The result is " << id << endl;
+            counter1[i]++;
+            if(id == i) counter2[i]++;
+            if(id == -1) counter3[i]++;
+            cout << "The setid and result is: " << i << " - " << id << endl;
         }
     }
-
+    for(auto i = 0; i < fileVec.size(); i++) {
+        cout << "set id: " << i << endl;
+        cout << "The match number is: " << counter2[i] << endl;
+        cout << "The failed number is: " << counter3[i] << endl;
+        cout << "The total number is: " << counter1[i] << endl;
+    }
 }
