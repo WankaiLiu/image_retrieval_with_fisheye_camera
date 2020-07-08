@@ -23,7 +23,7 @@ include_directories("src/")
 
 set(SRC_CODE ${SRC_FILES} ${DBOW_FILES} ${DUTILS_FILES} ${DVISION_FILES} ${UTILITY_FILES})
 add_library(image_retrieval SHARED ${SRC_CODE})  
-target_link_libraries(image_retrieval)
+#target_link_libraries(image_retrieval)
 #MESSAGE("Boost_LIBRARIES ${Boost_LIBRARIES} ${Boost_LIBS}")
 add_executable(image_retrieval_test image_retrieval_test.cpp )
 target_link_libraries(image_retrieval_test ${OpenCV_LIBS} image_retrieval)

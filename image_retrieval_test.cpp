@@ -39,12 +39,15 @@ void LoadImages(const string &strImagePath, const string &strTimesStampsPath,
 
 int main()
 {
+
     std::string voc_path= "/home/wankai/project/image_retrieval/config/loopC_vocdata.bin";
 
 
     string base_path = "/home/wankai/data/slam/slamdata-Chicken/slamdata-circle-01/";
     string image_path = base_path + "cam0";
     string timeStamps = base_path + "loop.txt";
+    std::string pattern_file = "/home/wankai/project/image_retrieval/config/loopC_pattern.yml";
+    ImageDatabase imdb(voc_path, pattern_file);
     vector<string> imagesList;
 //    ./estimator_test -c=/home/wankai/data/slam/slamdata-Chicken/sunflower/config_g2.yaml -l=$DATA_DIR/$DATA/cam0
 //            -r=$DATA_DIR/$DATA/cam1 -ts=$DATA_DIR/$DATA/loop.txt -imu=$DATA_DIR/$DATA/imu0.csv
@@ -56,9 +59,12 @@ int main()
 //    for (int ni = 0; ni < imagesList.size(); ni++) {
     for (int ni = 0; ni < 10; ni++) {
         cv::Mat image = cv::imread(imagesList[ni], CV_LOAD_IMAGE_UNCHANGED);
+        imdb.addImage(image, ni%3);
     }
     for (int ni = 0; ni < imagesList.size(); ni++) {
         cv::Mat image = cv::imread(imagesList[ni], CV_LOAD_IMAGE_UNCHANGED);
+        int id = imdb.query(image);
+        cout << "The result is " << id << endl;
     }
 //    BriefVocabulary* voc = new BriefVocabulary();
 

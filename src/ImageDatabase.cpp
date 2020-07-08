@@ -11,6 +11,7 @@ ImageDatabase::ImageDatabase(string voc_path, std::string _pattern_file){
     delete voc;
     counter = 0;
 }
+
 void ImageDatabase::blurImage4Brief(const cv::Mat &src, cv::Mat &dst){
     if (!src.empty())
     {
@@ -19,6 +20,7 @@ void ImageDatabase::blurImage4Brief(const cv::Mat &src, cv::Mat &dst){
         cv::GaussianBlur(src, dst, ksize, sigma, sigma);
     }
 }
+
 void ImageDatabase::computeBRIEFPoint(const cv::Mat &image, cv::Mat &image_blur,vector<cv::KeyPoint> &keypoints,
                        vector<BRIEF::bitset> &brief_descriptors)
 {
@@ -51,4 +53,30 @@ void ImageDatabase::addImage(const cv::Mat &image, int set_id) {
     computeBRIEFPoint(image,image_blur,keypoints,brief_descriptors);
     db.add(brief_descriptors);
     imageset_id.push_back(set_id);
+}
+
+bool ImageDatabase::erase(int id) {
+    if(id > imageset_id.size()) {
+        return false;
+    }
+    DBoW2::EntryId entryId = id;
+    db.delete_entry(entryId);
+    imageset_id.erase(imageset_id.begin() + id);
+    return true;
+};
+
+int ImageDatabase::query(cv::Mat image){
+    cv::Mat image_blur;
+    blurImage4Brief(image, image_blur);
+    vector<cv::KeyPoint> keypoints;
+    vector<BRIEF::bitset> brief_descriptors;
+    computeBRIEFPoint(image,image_blur,keypoints,brief_descriptors);
+    db.query(brief_descriptors, ret, 4, imageset_id.size());
+
+    if (ret.size() >= 1 && ret[0].Score > 0.05) {
+        return imageset_id[ret[0].Id];
+    }
+    else {
+        return -1;
+    }
 }
