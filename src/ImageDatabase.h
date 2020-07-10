@@ -15,6 +15,7 @@ public:
     void addImage(const cv::Mat &image, int set_id);
     int query(cv::Mat image);
     bool erase(int id);
+    void extractFeatureVector(const cv::Mat &src, vector<BRIEF::bitset> &brief_descriptors);
 private:
     int counter;
     vector<int> imageset_id;

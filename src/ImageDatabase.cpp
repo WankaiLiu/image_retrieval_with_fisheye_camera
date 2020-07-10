@@ -24,7 +24,6 @@ void ImageDatabase::blurImage4Brief(const cv::Mat &src, cv::Mat &dst){
 void ImageDatabase::computeBRIEFPoint(const cv::Mat &image, cv::Mat &image_blur,vector<cv::KeyPoint> &keypoints,
                        vector<BRIEF::bitset> &brief_descriptors)
 {
-
     static BriefExtractor m_extractor;
     m_extractor.init(pattern_file.c_str());
     int fast_th = 20; // corner detector response threshold
@@ -40,7 +39,6 @@ void ImageDatabase::computeBRIEFPoint(const cv::Mat &image, cv::Mat &image_blur,
         key.pt = tmp_pts[i];
         keypoints.push_back(key);
     }
-
     if(DEBUG_INFO) LOGD("FAST keypoints size = %zu, fast_th = %d", keypoints.size(), fast_th);
     m_extractor(image_blur, keypoints, brief_descriptors);
 }
@@ -80,4 +78,10 @@ int ImageDatabase::query(cv::Mat image){
     else {
         return -1;
     }
+}
+void ImageDatabase::extractFeatureVector(const cv::Mat &src, vector<BRIEF::bitset> &brief_descriptors) {
+    cv::Mat image_blur;
+    blurImage4Brief(src, image_blur);
+    vector<cv::KeyPoint> keypoints;
+    computeBRIEFPoint(src,image_blur,keypoints,brief_descriptors);
 }
