@@ -1,9 +1,12 @@
 #include <string>
+#include <vector>
 #include <iostream>
-//using namespace std;
+#include <fstream>
+#include <sstream>
+using namespace std;
 #include "tic_toc.h"
-#include "ImageDatabase.h"
-
+#include "imdb_sdk.h"
+#define DEBUG_INFO 1
 
 void LoadImages(const string &strImagePath, const string &strTimesStampsPath,
                 vector<string> &strImagesFileNames)
@@ -64,13 +67,14 @@ int main()
     string voc_path= "/home/wankai/project/image_retrieval/config/loopC_vocdata.bin";
     string fileListsPath = "../config/datalist2.txt";
     std::string pattern_file = "/home/wankai/project/image_retrieval/config/loopC_pattern.yml";
-    ImageDatabase imdb(voc_path, pattern_file);
+//    ImageDatabase imdb(voc_path, pattern_file);
+    initDataBase(voc_path, pattern_file);
     vector<string> fileVec;
     LoadPathList(fileListsPath, fileVec);
     TicToc t_loadImage;
     double loadImageTimeCost, queryImageTimeCost;
     int counterDb = 0, counterQuery = 0;
-    vector<BRIEF::bitset> brief_descriptors;
+//    vector<BRIEF::bitset> brief_descriptors;
     for(auto i = 0; i < fileVec.size(); i++) {
         string base_path = fileVec[i];
         string image_path = base_path + "/cam0";
@@ -81,9 +85,10 @@ int main()
             cout << "The size of image list is " << imagesList.size() << endl;
         }
         for (int ni = 0; ni < imagesList.size(); ni += addStep) {
-            cv::Mat image = cv::imread(imagesList[ni], CV_LOAD_IMAGE_UNCHANGED);
-            imdb.extractFeatureVector(image, brief_descriptors);
-            imdb.addImage(image, i);
+//            cv::Mat image = cv::imread(imagesList[ni], CV_LOAD_IMAGE_UNCHANGED);
+//            imdb.extractFeatureVector(image, brief_descriptors);
+//            imdb.addImage(image, i);
+              addImage(imagesList[ni],i);
         }
         counterDb += imagesList.size() / addStep;
     }
@@ -105,8 +110,8 @@ int main()
             cout << "The size of image list is " << imagesList.size() << endl;
         }
         for (int ni = 0; ni < imagesList.size(); ni += queryStep) {
-            cv::Mat image = cv::imread(imagesList[ni], CV_LOAD_IMAGE_UNCHANGED);
-            int id = imdb.query(image);
+//            cv::Mat image = cv::imread(imagesList[ni], CV_LOAD_IMAGE_UNCHANGED);
+            int id = query(imagesList[ni]);
             counter1[i]++;
             if(id == i) counter2[i]++;
             if(id == -1) counter3[i]++;
