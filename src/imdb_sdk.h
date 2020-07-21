@@ -25,6 +25,7 @@
 API_EXPORT bool initDataBase(std::string voc_path, std::string _pattern_file);
 API_EXPORT bool addImage(const std::string &img_path, int set_id);
 API_EXPORT int query(const std::string &img_path);
+API_EXPORT int query_list(const std::vector<std::string> &img_path_vec);
 API_EXPORT bool erase(int id);
 API_EXPORT bool releaseDataBase();
 
