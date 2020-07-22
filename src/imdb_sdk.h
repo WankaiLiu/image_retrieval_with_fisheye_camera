@@ -7,6 +7,7 @@
 
 #include <string>
 #include <iostream>
+#include <vector>
 
 #ifdef __cplusplus
 #ifdef WINDOWS

@@ -11,6 +11,7 @@ API_EXPORT bool initDataBase(string voc_path, std::string _pattern_file)
     imdb = new ImageDatabase(voc_path,  _pattern_file);
     return true;
 }
+#ifndef DEBUG
 API_EXPORT bool addImage(const string &img_path, int set_id){
     cv::Mat image = cv::imread(img_path, CV_LOAD_IMAGE_UNCHANGED);
     imdb->addImage(image, set_id);
@@ -24,6 +25,17 @@ API_EXPORT int  query_list(const std::vector<std::string> &img_path_vec) {
     cv::Mat image = cv::imread(img_path_vec[0], CV_LOAD_IMAGE_UNCHANGED);
     return  imdb->query(image);
 }
+#else
+API_EXPORT bool addImage(const string &img_path, int set_id){
+}
+
+API_EXPORT int query(const string &img_path){
+    return  -1;
+}
+API_EXPORT int  query_list(const std::vector<std::string> &img_path_vec) {
+    return  -1;
+}
+#endif
 API_EXPORT bool erase(int id) {
     imdb->erase(id);
 }
