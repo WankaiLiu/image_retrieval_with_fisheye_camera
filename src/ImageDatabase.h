@@ -8,7 +8,7 @@
 #include "brief.h"
 
 #define DEBUG_INFO 0
-#define DEBUG
+//#define DEBUG
 
 class ImageDatabase {
 public:

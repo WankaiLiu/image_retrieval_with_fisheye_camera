@@ -23,11 +23,11 @@
 #define API_EXPORT
 #endif
 
-API_EXPORT bool initDataBase(std::string voc_path, std::string _pattern_file);
-API_EXPORT bool addImage(const std::string &img_path, int set_id);
-API_EXPORT int query(const std::string &img_path);
-API_EXPORT int query_list(const std::vector<std::string> &img_path_vec);
-API_EXPORT bool erase(int id);
-API_EXPORT bool releaseDataBase();
+API_EXPORT void* initDataBase(std::string voc_path, std::string _pattern_file);
+API_EXPORT bool addImage(void* handler, const std::string &img_path, int set_id);
+API_EXPORT int query(void* handler, const std::string &img_path);
+API_EXPORT int query_list(void* handler, const std::vector<std::string> &img_path_vec);
+API_EXPORT bool erase(void* handler, int id);
+API_EXPORT bool releaseDataBase(void* handler);
 
 #endif //IMAGE_RETRIEVAL_IMDB_SDK_H
