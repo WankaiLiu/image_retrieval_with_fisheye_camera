@@ -22,6 +22,9 @@
 #else
 #define API_EXPORT
 #endif
+
+const int SCENE_NUM = 10;
+
 struct query_result
 {
     int set_id;

@@ -9,7 +9,7 @@
 API_EXPORT void* initDataBase(string voc_path, std::string _pattern_file)
 {
     ImageDatabase* imdb = new ImageDatabase(voc_path,  _pattern_file);
-    imdb->scene_num = 10;
+    imdb->scene_num = SCENE_NUM;
     return imdb;
 }
 
@@ -31,7 +31,7 @@ API_EXPORT query_result query_list(void* handler, const char* pData, int nWidth,
     vector<cv::Mat> images;
     for(int i = 0; i < numFrame; i++) {
         cv::Mat image = cv::Mat(nHeight, nWidth, CV_8UC1);
-        memcpy(image.data, pData + nWidth * nHeight, nWidth * nHeight);
+        memcpy(image.data, pData + nWidth * nHeight * i, nWidth * nHeight);
         if(DEBUG_INFO) {
             cv::imshow("image", image);
             cv::waitKey(5);

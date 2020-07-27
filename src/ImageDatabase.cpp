@@ -94,7 +94,7 @@ pair<int, double> ImageDatabase::query_list(const std::vector<cv::Mat>& image_li
         computeBRIEFPoint(image_list[i],image_blur,keypoints,brief_descriptors);
         db.query(brief_descriptors, ret, 4, imageset_id.size());
 
-        if (ret.size() >= 1 && ret[0].Score > 0.001) {
+        if (ret.size() >= 1 && ret[0].Score > 0.005) {
             window_id_list.push_back(imageset_id[ret[0].Id]);
         }
         else {
@@ -110,6 +110,13 @@ pair<int, double> ImageDatabase::query_list(const std::vector<cv::Mat>& image_li
         });//降序排列
     double confidence1 = (double)vote_window[0].second/(double)window_size;//置信度最高
     double confidence2 = (double)vote_window[1].second/(double)window_size;
+
+    if(DEBUG_INFO)
+    for (size_t i = 0; i < vote_window.size(); i++)
+    {
+        printf("vote [%d]:%d\n",vote_window[i].first,vote_window[i].second);
+    }
+
     if( confidence1 > 0.50)
     {
         trust_id=vote_window[0].first;
