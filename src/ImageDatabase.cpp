@@ -43,7 +43,6 @@ void ImageDatabase::computeBRIEFPoint(const cv::Mat &image, cv::Mat &image_blur,
     m_extractor(image_blur, keypoints, brief_descriptors);
 }
 
-#ifndef DEBUG
 void ImageDatabase::addImage(const cv::Mat &image, int set_id) {
     cv::Mat image_blur;
     blurImage4Brief(image, image_blur);
@@ -53,20 +52,6 @@ void ImageDatabase::addImage(const cv::Mat &image, int set_id) {
     db.add(brief_descriptors);
     imageset_id.push_back(set_id);
 }
-#else
-void ImageDatabase::addImage(const cv::Mat &image, int set_id, int set_id_index, int create_db) {
-    if(create_db)
-    {
-        cv::Mat image_blur;
-        blurImage4Brief(image, image_blur);
-        vector<cv::KeyPoint> keypoints;
-        vector<BRIEF::bitset> brief_descriptors;
-        computeBRIEFPoint(image,image_blur,keypoints,brief_descriptors);
-        db.add(brief_descriptors);
-    }
-    imageset_id.push_back(make_pair(set_id,set_id_index));
-}
-#endif
 
 bool ImageDatabase::erase(int id) {
     if(id > imageset_id.size()) {
@@ -78,7 +63,6 @@ bool ImageDatabase::erase(int id) {
     return true;
 };
 
-#ifndef DEBUG
 int ImageDatabase::query(cv::Mat image){
     cv::Mat image_blur;
     blurImage4Brief(image, image_blur);
@@ -95,25 +79,49 @@ int ImageDatabase::query(cv::Mat image){
         return -1;
     }
 }
-#else
-pair<int,int> ImageDatabase::query(cv::Mat image){
-    cv::Mat image_blur;
-    blurImage4Brief(image, image_blur);
-    vector<cv::KeyPoint> keypoints;
-    vector<BRIEF::bitset> brief_descriptors;
-    computeBRIEFPoint(image,image_blur,keypoints,brief_descriptors);
-    db.query(brief_descriptors, ret, 4, imageset_id.size());
 
-    if (ret.size() >= 1 && ret[0].Score > 0.005) {
-        cout << "ret[0].Score:" << ret[0].Score << endl;
-        printf("%d, %d\n",imageset_id[ret[0].Id],ret[0].Id);
-        return imageset_id[ret[0].Id];
+pair<int, double> ImageDatabase::query_list(const std::vector<cv::Mat>& image_list){//根据这一个list中的图片直接在当次判断出当前场景ID
+    int window_size=image_list.size();
+    std::vector<int> window_id_list;
+    std::vector<pair<int,int>> vote_window;
+    int trust_id=-1;
+    for (size_t i = 0; i < window_size; i++)//query
+    {
+        cv::Mat image_blur;
+        blurImage4Brief(image_list[i], image_blur);
+        vector<cv::KeyPoint> keypoints;
+        vector<BRIEF::bitset> brief_descriptors;
+        computeBRIEFPoint(image_list[i],image_blur,keypoints,brief_descriptors);
+        db.query(brief_descriptors, ret, 4, imageset_id.size());
+
+        if (ret.size() >= 1 && ret[0].Score > 0.001) {
+            window_id_list.push_back(imageset_id[ret[0].Id]);
+        }
+        else {
+            window_id_list.push_back(-1);
+        }
     }
-    else {
-        return make_pair(-1,-1);
+
+    for (size_t i = 0; i < scene_num; i++) vote_window.push_back(make_pair(i,0));//先把统计窗口中的ID放进去
+    for (size_t i = 0; i < window_size; i++) vote_window[window_id_list[i]].second++;//再把每个ID出现的次数放进去
+    sort(vote_window.begin(), vote_window.end(),
+            [](const pair<int, int> &a, const pair<int, int> &b) {
+            return a.second > b.second;
+        });//降序排列
+    double confidence1 = (double)vote_window[0].second/(double)window_size;//置信度最高
+    double confidence2 = (double)vote_window[1].second/(double)window_size;
+    if( confidence1 > 0.50)
+    {
+        trust_id=vote_window[0].first;
+        if(DEBUG_INFO) printf("the most recommend scene id: %d(%f)\n", trust_id, confidence1);
     }
+    else
+    {
+        if(DEBUG_INFO) printf("the recommend two scene ids: first-%d(%f) second-%d(%f)\n", vote_window[0].first,confidence1,vote_window[1].first,confidence2);
+    }
+    return make_pair(vote_window[0].first, confidence1);
 }
-#endif
+
 void ImageDatabase::extractFeatureVector(const cv::Mat &src, vector<BRIEF::bitset> &brief_descriptors) {
     cv::Mat image_blur;
     blurImage4Brief(src, image_blur);

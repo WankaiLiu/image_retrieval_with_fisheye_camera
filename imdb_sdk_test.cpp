@@ -6,6 +6,7 @@
 using namespace std;
 #include "tic_toc.h"
 #include "imdb_sdk.h"
+#include <opencv2/opencv.hpp>
 #define DEBUG_INFO 1
 
 void LoadImages(const string &strImagePath, const string &strTimesStampsPath,
@@ -63,12 +64,22 @@ void LoadPathList( const string &fileListsPath, vector<string> &fileVec)
 int main()
 {
     int addStep = 10;
-    int queryStep = 10;
+    int queryStep = 14;//down sample to 2fps
+    int query_list_num = 10;//collect images in 5s to upload and query
+    const int IMG_WIDTH = 640;
+    const int IMG_HEIGHT = 400;
     string voc_path= "/home/wankai/project/image_retrieval/config/loopC_vocdata.bin";
     string fileListsPath = "../config/datalist2.txt";
+    string testListsPath = "../config/datalist1.txt";
     std::string pattern_file = "/home/wankai/project/image_retrieval/config/loopC_pattern.yml";
+
+    pattern_file = "/home/what/disk/works/image_retrieval/loopC_pattern.yml";
+    voc_path = "/home/what/disk/works/image_retrieval/loopC_vocdata.bin";
+    fileListsPath = "../config/dlist2.txt";
+    testListsPath = "../config/dlist1.txt";
+
 //    ImageDatabase imdb(voc_path, pattern_file);
-    initDataBase(voc_path, pattern_file);
+    void *handler1 = initDataBase(voc_path, pattern_file);
     vector<string> fileVec;
     LoadPathList(fileListsPath, fileVec);
     TicToc t_loadImage;
@@ -82,18 +93,18 @@ int main()
         vector<string> imagesList;
         if (!image_path.empty()) {
             LoadImages(image_path, timeStamps, imagesList);
-            cout << "The size of image list is " << imagesList.size() << endl;
+            std::cout << "The size of image list is " << imagesList.size() << endl;
         }
         for (int ni = 0; ni < imagesList.size(); ni += addStep) {
 //            cv::Mat image = cv::imread(imagesList[ni], CV_LOAD_IMAGE_UNCHANGED);
 //            imdb.extractFeatureVector(image, brief_descriptors);
 //            imdb.addImage(image, i);
-              addImage(imagesList[ni],i);
+              addImage(handler1,imagesList[ni],i);
         }
         counterDb += imagesList.size() / addStep;
     }
     loadImageTimeCost = t_loadImage.toc();
-    string fileListsPathQuery = "../config/datalist1.txt";
+    string fileListsPathQuery = testListsPath;
     LoadPathList(fileListsPathQuery, fileVec);
     vector<int> counter1,counter2,counter3;
     TicToc t_queryImage;
@@ -107,30 +118,49 @@ int main()
         vector<string> imagesList;
         if (!image_path.empty()) {
             LoadImages(image_path, timeStamps, imagesList);
-            cout << "The size of image list is " << imagesList.size() << endl;
+            std::cout << "The size of image list is " << imagesList.size() << endl;
         }
+
+        int add_cycle = 0;
+        char image_data[IMG_WIDTH*IMG_HEIGHT*query_list_num];
+        char * image_data_ptr = image_data;
+        int img_size = IMG_WIDTH*IMG_HEIGHT;
         for (int ni = 0; ni < imagesList.size(); ni += queryStep) {
-//            cv::Mat image = cv::imread(imagesList[ni], CV_LOAD_IMAGE_UNCHANGED);
-            int id = query(imagesList[ni]);
-            counter1[i]++;
-            if(id == i) counter2[i]++;
-            if(id == -1) counter3[i]++;
-            cout << "The setid and result is: " << i << " - " << id << endl;
+            cv::Mat image = cv::imread(imagesList[ni], CV_LOAD_IMAGE_UNCHANGED);
+            cv::Mat im_rsz = image.reshape(0,1);
+            if(add_cycle<query_list_num)
+            {
+                memcpy(image_data_ptr, im_rsz.data, img_size);
+                image_data_ptr += img_size;
+                add_cycle++;
+            }
+            else
+            {
+                query_result qr = query_list(handler1, image_data, IMG_WIDTH, IMG_HEIGHT, query_list_num);
+                int id = qr.set_id;
+                double confidence = qr.confidence;
+                counter1[i]++;
+                if(id == i) counter2[i]++;
+                if(id == -1) counter3[i]++;
+                std::cout << "The setid and result is: " << i << " - " << id << "(" << confidence << ")" << endl;
+                add_cycle=0;
+                image_data_ptr = image_data;
+            }
         }
         counterQuery += imagesList.size() / queryStep;
     }
     queryImageTimeCost = t_loadImage.toc();
     for(auto i = 0; i < fileVec.size(); i++) {
-        cout << "set id: " << i << endl;
-        cout << "The match number is: " << counter2[i] << endl;
-        cout << "The failed number is: " << counter3[i] << endl;
-        cout << "The total number is: " << counter1[i] << endl;
-        cout << "Success rate is: " << 1.0f * counter2[i] / counter1[i] << endl;
+        std::cout << "set id: " << i << endl;
+        std::cout << "The match number is: " << counter2[i] << endl;
+        std::cout << "The failed number is: " << counter3[i] << endl;
+        std::cout << "The total number is: " << counter1[i] << endl;
+        std::cout << "Success rate is: " << 1.0f * counter2[i] / counter1[i] << endl;
     }
-    cout << "loadImageTimeCost(s) is: " << loadImageTimeCost / 1000 << endl;
-    cout << "queryImageTimeCost(s) is: " << queryImageTimeCost / 1000 << endl;
-    cout << "loadImageTotalNumber is: " << counterDb << endl;
-    cout << "queryImageTotalNumber is: " << counterQuery << endl;
-    cout << "avg loadImageTimeCost(ms) is: " << loadImageTimeCost / counterDb<< endl;
-    cout << "avg queryImageTimeCost(ms) is: " << queryImageTimeCost / counterQuery << endl;
+    std::cout << "loadImageTimeCost(s) is: " << loadImageTimeCost / 1000 << endl;
+    std::cout << "queryImageTimeCost(s) is: " << queryImageTimeCost / 1000 << endl;
+    std::cout << "loadImageTotalNumber is: " << counterDb << endl;
+    std::cout << "queryImageTotalNumber is: " << counterQuery << endl;
+    std::cout << "avg loadImageTimeCost(ms) is: " << loadImageTimeCost / counterDb<< endl;
+    std::cout << "avg queryImageTimeCost(ms) is: " << queryImageTimeCost / counterQuery << endl;
 }
