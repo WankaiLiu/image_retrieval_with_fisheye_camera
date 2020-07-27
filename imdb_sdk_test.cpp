@@ -68,16 +68,16 @@ int main()
     int query_list_num = 10;//collect images in 5s to upload and query
     const int IMG_WIDTH = 640;
     const int IMG_HEIGHT = 400;
-    string voc_path= "/home/wankai/project/image_retrieval/config/loopC_vocdata.bin";
+    string voc_path= "../config/loopC_vocdata.bin";
     string fileListsPath = "../config/datalist2.txt";
     string testListsPath = "../config/datalist1.txt";
-    std::string pattern_file = "/home/wankai/project/image_retrieval/config/loopC_pattern.yml";
-
+    std::string pattern_file = "../config/loopC_pattern.yml";
+#if 0
     pattern_file = "/home/what/disk/works/image_retrieval/loopC_pattern.yml";
     voc_path = "/home/what/disk/works/image_retrieval/loopC_vocdata.bin";
     fileListsPath = "../config/dlist2.txt";
     testListsPath = "../config/dlist1.txt";
-
+#endif
 //    ImageDatabase imdb(voc_path, pattern_file);
     void *handler1 = initDataBase(voc_path, pattern_file);
     vector<string> fileVec;
