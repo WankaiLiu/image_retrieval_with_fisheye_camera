@@ -82,9 +82,9 @@ int ImageDatabase::query(cv::Mat image){
 
 pair<int, double> ImageDatabase::query_list(const std::vector<cv::Mat>& image_list){//根据这一个list中的图片直接在当次判断出当前场景ID
     int window_size=image_list.size();
-    std::vector<int> window_id_list;
-    std::vector<pair<int,int>> vote_window;
-    int trust_id=-1;
+    std::vector<pair<int,double>> window_id_list;
+    std::vector<pair<int,pair<int,double>>> vote_window;
+    int trust_id=scene_num+1;
     for (size_t i = 0; i < window_size; i++)//query
     {
         cv::Mat image_blur;
@@ -94,39 +94,87 @@ pair<int, double> ImageDatabase::query_list(const std::vector<cv::Mat>& image_li
         computeBRIEFPoint(image_list[i],image_blur,keypoints,brief_descriptors);
         db.query(brief_descriptors, ret, 4, imageset_id.size());
 
-        if (ret.size() >= 1 && ret[0].Score > 0.005) {
-            window_id_list.push_back(imageset_id[ret[0].Id]);
+        if (ret.size() >= 1 && ret[0].Score > 0.0001) {
+            window_id_list.push_back(make_pair(imageset_id[ret[0].Id],ret[0].Score));
         }
         else {
-            window_id_list.push_back(-1);
+            window_id_list.push_back(make_pair(scene_num+1,-1));
         }
     }
-
-    for (size_t i = 0; i < scene_num; i++) vote_window.push_back(make_pair(i,0));//先把统计窗口中的ID放进去
-    for (size_t i = 0; i < window_size; i++) vote_window[window_id_list[i]].second++;//再把每个ID出现的次数放进去
-    sort(vote_window.begin(), vote_window.end(),
-            [](const pair<int, int> &a, const pair<int, int> &b) {
+    sort(window_id_list.begin(), window_id_list.end(),
+            [](const pair<int, double> &a, const pair<int, double> &b) {
             return a.second > b.second;
         });//降序排列
-    double confidence1 = (double)vote_window[0].second/(double)window_size;//置信度最高
-    double confidence2 = (double)vote_window[1].second/(double)window_size;
 
-    if(DEBUG_INFO)
-    for (size_t i = 0; i < vote_window.size(); i++)
+    for (size_t i = 0; i < scene_num+2; i++) vote_window.push_back(make_pair(i,make_pair(0,0)));//先把统计窗口中的ID放进去
+    for (size_t i = 0; i < window_size; i++) //再把每个ID出现的次数放进去
     {
-        printf("vote [%d]:%d\n",vote_window[i].first,vote_window[i].second);
+        if(window_id_list[i].first<scene_num)
+        {
+            vote_window[window_id_list[i].first].second.first++;
+            vote_window[window_id_list[i].first].second.second+=window_id_list[i].second;
+        }
+    }
+    if(window_id_list[0].second/window_id_list[1].second > 2.0)
+    vote_window[window_id_list[0].first].second.first+=2;
+    // vote_window[last_id].second.first++;
+    sort(vote_window.begin(), vote_window.end(),
+            [](const pair<int, pair<int,double>> &a, const pair<int, pair<int,double>> &b) {
+            return a.second.first > b.second.first;
+        });//降序排列
+
+    // if(DEBUG_INFO)
+    if(0)
+    {
+        printf("-----------------------------------------------------------------------(%d %.4f),(%d %.4f),(%d %.4f)  last:%d,%d\n",
+        window_id_list[0].first,window_id_list[0].second,
+        window_id_list[2].first,window_id_list[2].second,
+        window_id_list[3].first,window_id_list[3].second,
+        last_id,id_cnt);
+        printf("vote ID:  ");
+        for (size_t i = 0; i < vote_window.size(); i++) printf("   %4d",vote_window[i].first);
+        printf("\nvote cnt: ");
+        for (size_t i = 0; i < vote_window.size(); i++) printf("   %4d",vote_window[i].second.first);
+        printf("\nvote scr: ");
+        for (size_t i = 0; i < vote_window.size(); i++) printf("   %.2f",vote_window[i].second.second);
+        printf("\n");
     }
 
-    if( confidence1 > 0.50)
+    double confidence1 = (double)vote_window[0].second.first/(double)window_size;//置信度最高
+    double confidence2 = (double)vote_window[1].second.first/(double)window_size;
+
+    int x=0;
+    if(((double)vote_window[0].second.first/(double)vote_window[1].second.first<2.0)&&
+        (vote_window[0].second.second/vote_window[0].second.second<2.0))
+    for (size_t i = 0; i < 5; i++)
     {
-        trust_id=vote_window[0].first;
-        if(DEBUG_INFO) printf("the most recommend scene id: %d(%f)\n", trust_id, confidence1);
+        if(id_cnt < 1)
+        {
+            if(vote_window[i].first == last_id)
+            {
+                x = i;
+                break;
+            }
+        }
+        else
+        {
+            if(vote_window[i].first == last_id1)
+            {
+                x = i;
+                break;
+            }
+        }
     }
-    else
-    {
-        if(DEBUG_INFO) printf("the recommend two scene ids: first-%d(%f) second-%d(%f)\n", vote_window[0].first,confidence1,vote_window[1].first,confidence2);
-    }
-    return make_pair(vote_window[0].first, confidence1);
+    // printf("last:%d  x:%d  cur:%d\n",last_id,x,vote_window[x].first);
+    last_id = vote_window[x].first;
+
+    if(last_id1 == last_id) id_cnt++;
+    else id_cnt=0;
+    last_id1 = last_id;
+
+    double confidence = (double)vote_window[x].second.first/(double)window_size;
+
+    return make_pair(vote_window[x].first, confidence);
 }
 
 void ImageDatabase::extractFeatureVector(const cv::Mat &src, vector<BRIEF::bitset> &brief_descriptors) {

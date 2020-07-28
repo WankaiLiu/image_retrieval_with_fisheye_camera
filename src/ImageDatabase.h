@@ -31,6 +31,8 @@ private:
     void blurImage4Brief(const cv::Mat &src, cv::Mat &dst);
     void computeBRIEFPoint(const cv::Mat &image, cv::Mat &image_blur,vector<cv::KeyPoint> &keypoints,
                            vector<BRIEF::bitset> &brief_descriptors);
+    int id_cnt;
+    int last_id,last_id1;
 };
 
 

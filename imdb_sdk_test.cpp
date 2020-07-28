@@ -64,8 +64,8 @@ void LoadPathList( const string &fileListsPath, vector<string> &fileVec)
 int main()
 {
     int addStep = 10;
-    int queryStep = 14;//down sample to 2fps
-    int query_list_num = 10;//collect images in 5s to upload and query
+    int queryStep = 29;//down sample to 1fps
+    int query_list_num = 10;//collect images in 10s to upload and query
     const int IMG_WIDTH = 640;
     const int IMG_HEIGHT = 400;
     string voc_path= "../config/loopC_vocdata.bin";
@@ -142,7 +142,7 @@ int main()
                 counter1[i]++;
                 if(id == i) counter2[i]++;
                 if(id == -1) counter3[i]++;
-                std::cout << "The setid and result is: " << i << " - " << id << "(" << confidence << ")" << endl;
+                std::cout << "The setid and result is: " << i << " - " << id << "(" << confidence << ")\n" << endl;
                 add_cycle=0;
                 image_data_ptr = image_data;
             }
