@@ -4,6 +4,79 @@
 
 #include "ImageDatabase.h"
 
+#if 0
+#include <opencv2/xfeatures2d/nonfree.hpp>
+template <typename T>
+void reduceVector(std::vector<T> &v, std::vector<uchar> status)
+{
+    int j = 0;
+    for (int i = 0; i < int(v.size()); i++)
+    {
+        if (status[i]==1)
+            v[j++] = v[i];
+    }
+    v.resize(j);
+}
+
+int minHessian = 400;
+int reserve_num = 50;
+double chkBySurf(const cv::Mat& img_1,const cv::Mat& img_2)//SURF算法
+{
+    cv::Ptr<cv::Feature2D> f2d_surf= cv::xfeatures2d::SURF::create(minHessian);
+    std::vector<cv::KeyPoint> keypoints_1, keypoints_2;
+    cv::Mat descriptors_1, descriptors_2;
+    f2d_surf->detectAndCompute( img_1, cv::Mat(), keypoints_1, descriptors_1 );
+    f2d_surf->detectAndCompute( img_2, cv::Mat(), keypoints_2, descriptors_2 );
+    cv::BFMatcher matcher(cv::NORM_L2);
+    // cv::Ptr<cv::Feature2D> f2d = cv::xfeatures2d::SURF::create(minHessian);
+    // vector<KeyPoint> keypoints_1, keypoints_2;
+    // f2d->detect(img_1, keypoints_1);
+    // f2d->detect(img_2, keypoints_2);
+    // Mat descriptors_1, descriptors_2;
+    // f2d->compute(img_1, keypoints_1, descriptors_1);
+    // f2d->compute(img_2, keypoints_2, descriptors_2);
+    // BFMatcher matcher;
+    std::vector<cv::DMatch> matches;
+    matcher.match(descriptors_1, descriptors_2, matches);
+
+    nth_element(matches.begin(), matches.begin()+reserve_num, matches.end());   //提取出前最佳匹配结果
+    matches.erase(matches.begin()+reserve_num, matches.end());    //剔除掉其余的匹配结果
+    std::vector<cv::KeyPoint> kpm_1, kpm_2;
+    for( size_t m = 0; m < matches.size(); m++ )
+    {
+        int i1 = matches[m].queryIdx;
+        int i2 = matches[m].trainIdx;
+        kpm_1.push_back(keypoints_1[i1]);
+        kpm_2.push_back(keypoints_2[i2]);
+    }
+    std::vector<cv::Point2f> kp1, kp2;
+    cv::KeyPoint::convert(kpm_1, kp1);
+    cv::KeyPoint::convert(kpm_2, kp2);
+    vector<unsigned char> status;
+    cv::findFundamentalMat(kp1, kp2, cv::FM_RANSAC, 0.5, 0.99, status);
+    reduceVector(kp1, status);
+    reduceVector(kp2, status);
+    int measure_num = kp1.size();
+    double sum_dis=0, avg_dis=0, variance=0;
+    std::vector<double> dist;
+    for (int i = 0; i < measure_num; i++)
+    {
+        cv::Point2d diff = cv::Point2d(kp2[i]-kp1[i]);
+        double distance = sqrt(diff.x*diff.x+diff.y*diff.y);
+        dist.push_back(distance);
+        sum_dis+=distance;
+    }
+    avg_dis = sum_dis / measure_num;
+    for (int i = 0; i < measure_num; i++)
+    {
+        double d = (dist[i]-avg_dis);
+        variance += d*d;
+    }
+    variance /= measure_num;
+    return variance;
+}
+#endif
+
 ImageDatabase::ImageDatabase(string voc_path, std::string _pattern_file){
     BriefVocabulary* voc = new BriefVocabulary(voc_path);
     this->db.setVocabulary(*voc, true, 0);
@@ -94,12 +167,26 @@ pair<int, double> ImageDatabase::query_list(const std::vector<cv::Mat>& image_li
         computeBRIEFPoint(image_list[i],image_blur,keypoints,brief_descriptors);
         db.query(brief_descriptors, ret, 4, imageset_id.size());
 
+        #if 1
         if (ret.size() >= 1 && ret[0].Score > 0.0001) {
+            // if(1) printf("%d [0]:%d-%.4f,[1]:%d-%.4f,[2]:%d-%.4f,[3]:%d-%.4f;", i,imageset_id[ret[0].Id], ret[0].Score,\
+            imageset_id[ret[1].Id], ret[1].Score, imageset_id[ret[2].Id],ret[2].Score, imageset_id[ret[3].Id],ret[3].Score);
             window_id_list.push_back(make_pair(imageset_id[ret[0].Id],ret[0].Score));
         }
         else {
             window_id_list.push_back(make_pair(scene_num+1,-1));
         }
+        // if(1) printf("\n");
+        #else
+        // for (size_t i = 0; i < 3; i++)
+        // {
+        //     window_id_list.push_back(make_pair(imageset_id[ret[i].Id],ret[i].Score));
+        // }
+
+        window_id_list.push_back(make_pair(imageset_id[ret[0].Id],ret[0].Score*1.2));
+        window_id_list.push_back(make_pair(imageset_id[ret[1].Id],ret[1].Score*1));
+        window_id_list.push_back(make_pair(imageset_id[ret[2].Id],ret[2].Score*0.8));
+        #endif
     }
     sort(window_id_list.begin(), window_id_list.end(),
             [](const pair<int, double> &a, const pair<int, double> &b) {
@@ -107,7 +194,7 @@ pair<int, double> ImageDatabase::query_list(const std::vector<cv::Mat>& image_li
         });//降序排列
 
     for (size_t i = 0; i < scene_num+2; i++) vote_window.push_back(make_pair(i,make_pair(0,0)));//先把统计窗口中的ID放进去
-    for (size_t i = 0; i < window_size; i++) //再把每个ID出现的次数放进去
+    for (size_t i = 0; i < window_id_list.size(); i++) //再把每个ID出现的次数放进去
     {
         if(window_id_list[i].first<scene_num)
         {
@@ -115,16 +202,27 @@ pair<int, double> ImageDatabase::query_list(const std::vector<cv::Mat>& image_li
             vote_window[window_id_list[i].first].second.second+=window_id_list[i].second;
         }
     }
-    if(window_id_list[0].second/window_id_list[1].second > 2.0)
+    if(window_id_list[0].second/window_id_list[1].second > 1.5)
     vote_window[window_id_list[0].first].second.first+=2;
-    // vote_window[last_id].second.first++;
+    #if 1
+    vote_window[last_id].second.first++;
     sort(vote_window.begin(), vote_window.end(),
             [](const pair<int, pair<int,double>> &a, const pair<int, pair<int,double>> &b) {
-            return a.second.first > b.second.first;
+            if(a.second.first == b.second.first)
+                 return a.second.second > b.second.second;
+            else return a.second.first > b.second.first;
         });//降序排列
+    #else
+    sort(vote_window.begin(), vote_window.end(),
+            [](const pair<int, pair<int,double>> &a, const pair<int, pair<int,double>> &b) {
+            if(a.second.first == b.second.first)
+                 return a.second.second > b.second.second;
+            else return a.second.first > b.second.first;
+        });//降序排列
+    #endif
 
     // if(DEBUG_INFO)
-    if(0)
+    if(1)
     {
         printf("-----------------------------------------------------------------------(%d %.4f),(%d %.4f),(%d %.4f)  last:%d,%d\n",
         window_id_list[0].first,window_id_list[0].second,
@@ -145,7 +243,7 @@ pair<int, double> ImageDatabase::query_list(const std::vector<cv::Mat>& image_li
 
     int x=0;
     if(((double)vote_window[0].second.first/(double)vote_window[1].second.first<2.0)&&
-        (vote_window[0].second.second/vote_window[0].second.second<2.0))
+        (vote_window[0].second.second/vote_window[0].second.second<2.0))//&&confidence1<0.5)
     for (size_t i = 0; i < 5; i++)
     {
         if(id_cnt < 1)
