@@ -3,7 +3,7 @@
 //
 
 #include "ImageDatabase.h"
-
+#define DEBUG_INFO_Q 1
 #if 0
 #include <opencv2/xfeatures2d/nonfree.hpp>
 template <typename T>
@@ -153,10 +153,90 @@ int ImageDatabase::query(cv::Mat image){
     }
 }
 
-pair<int, double> ImageDatabase::query_list(const std::vector<cv::Mat>& image_list){//根据这一个list中的图片直接在当次判断出当前场景ID
-    int window_size=image_list.size();
-    std::vector<pair<int,double>> window_id_list;
-    std::vector<pair<int,pair<int,double>>> vote_window;
+pair<int, double> ImageDatabase::query_list(const std::vector<cv::Mat>& image_list) {//根据这一个list中的图片直接在当次判断出当前场景ID
+    int window_size = image_list.size();
+    std::vector<pair<int, double>> window_id_list;
+    std::vector<pair<int, pair<int, double>>> vote_window;
+    int vote_array[window_size][scene_num];
+    int count_result[4][scene_num];
+//    vector<pair<int,int>> count_result;
+//    double vote_score[window_size][scene_num];
+    for (int i = 0; i < window_size; i++) {
+        for (int j = 0; j < scene_num; j++) {
+            vote_array[i][j] = 0;
+        }
+    }
+    for (int i = 0; i < 4; i++) {
+        for (int j = 0; j < scene_num; j++) {
+            count_result[i][j] = 0;
+        }
+    }
+    for (size_t i = 0; i < window_size; i++) {//query
+        cv::Mat image_blur;
+        blurImage4Brief(image_list[i], image_blur);
+        vector<cv::KeyPoint> keypoints;
+        vector<BRIEF::bitset> brief_descriptors;
+        computeBRIEFPoint(image_list[i], image_blur, keypoints, brief_descriptors);
+        db.query(brief_descriptors, ret, 4, imageset_id.size());
+        if (ret.size() >= 1 && ret[0].Score > 0.0001) {
+            for (int j = 0; j < ret.size(); j++) {
+                vote_array[i][imageset_id[ret[j].Id]]++;
+            }
+        }
+    }
+    if(DEBUG_INFO_Q) {
+        for (int i = 0; i < window_size; i++) {
+            for (int j = 0; j < scene_num; j++) {
+                cout << vote_array[i][j] << " ";
+            }
+            cout << endl;
+        }
+    }
+    for (int i = 0; i < window_size; i++) {
+        for (int j = 0; j < scene_num; j++) {
+            if (vote_array[i][j] == 4) count_result[0][j]++;
+            else if (vote_array[i][j] == 3) count_result[1][j]++;
+            else if (vote_array[i][j] == 2) count_result[2][j]++;
+            else if (vote_array[i][j] == 1) count_result[3][j]++;
+        }
+    }
+if(DEBUG_INFO_Q) {
+    cout << "------------" << endl;
+    for (int i = 0; i < 4; i++) {
+        for (int j = 0; j < scene_num; j++) {
+            cout << count_result[i][j] << " ";
+        }
+        cout << endl;
+    }
+}
+    int max_id = -1;
+    int max_cnt = 0;
+    for(int i = 0; i < scene_num; i++) {
+        if(count_result[0][i] != 0) {
+            max_id = max_cnt < count_result[0][i]? i : max_cnt;
+        }
+    }
+    if(max_id != -1) return pair<int, double> (max_id, 0);
+    for(int i = 0; i < scene_num; i++) {
+        if(count_result[1][i] != 0) {
+            max_id = max_cnt < count_result[1][i]? i : max_cnt;
+        }
+    }
+    if(max_id != -1) return pair<int, double> (max_id, 0);
+    for(int i = 0; i < scene_num; i++) {
+        if(count_result[2][i] != 0) {
+            max_id = max_cnt < count_result[2][i]? i : max_cnt;
+        }
+    }
+    if(max_id != -1) return pair<int, double> (max_id, 0);
+    for(int i = 0; i < scene_num; i++) {
+        if(count_result[3][i] != 0) {
+            max_id = max_cnt < count_result[3][i]? i : max_cnt;
+        }
+    }
+    if(max_id != -1) return pair<int, double> (max_id, 0);
+
+#if 0
     int trust_id=scene_num+1;
     for (size_t i = 0; i < window_size; i++)//query
     {
@@ -166,7 +246,6 @@ pair<int, double> ImageDatabase::query_list(const std::vector<cv::Mat>& image_li
         vector<BRIEF::bitset> brief_descriptors;
         computeBRIEFPoint(image_list[i],image_blur,keypoints,brief_descriptors);
         db.query(brief_descriptors, ret, 4, imageset_id.size());
-
         #if 1
         if (ret.size() >= 1 && ret[0].Score > 0.0001) {
             // if(1) printf("%d [0]:%d-%.4f,[1]:%d-%.4f,[2]:%d-%.4f,[3]:%d-%.4f;", i,imageset_id[ret[0].Id], ret[0].Score,\
@@ -273,6 +352,7 @@ pair<int, double> ImageDatabase::query_list(const std::vector<cv::Mat>& image_li
     double confidence = (double)vote_window[x].second.first/(double)window_size;
 
     return make_pair(vote_window[x].first, confidence);
+#endif
 }
 
 void ImageDatabase::extractFeatureVector(const cv::Mat &src, vector<BRIEF::bitset> &brief_descriptors) {
