@@ -13,6 +13,36 @@ API_EXPORT void* initDataBase(string voc_path, std::string _pattern_file)
     return imdb;
 }
 
+#if defined DEBUGD && defined DEBUG
+void saveImagePath(void* handler, const int id, const vector<string> &imagesList) {
+    ImageDatabase* imdb = (ImageDatabase*)handler;
+    imdb->saveImagePath(id,imagesList);
+}
+
+void addImage(void* handler, const string &img_path, int set_id, int set_id_index){
+    ImageDatabase* imdb = (ImageDatabase*)handler;
+    cv::Mat image = cv::imread(img_path, CV_LOAD_IMAGE_UNCHANGED);
+    imdb->addImage(image, set_id, set_id_index);
+}
+query_result query_list(void* handler, int set_id, const char* pData, int nWidth, int nHeight, int numFrame) {
+    query_result qr;
+    ImageDatabase* imdb = (ImageDatabase*)handler;
+    vector<cv::Mat> images;
+    for(int i = 0; i < numFrame; i++) {
+        cv::Mat image = cv::Mat(nHeight, nWidth, CV_8UC1);
+        memcpy(image.data, pData + nWidth * nHeight * i, nWidth * nHeight);
+        if(DEBUG_INFO) {
+            cv::imshow("image", image);
+            cv::waitKey(5);
+        }
+        images.push_back(image);
+    }
+    pair<int, double> id_query = imdb->query_list(set_id, images);
+    qr.set_id = id_query.first;
+    qr.confidence = id_query.second;
+    return  qr;
+}
+#else
 API_EXPORT bool addImage(void* handler, const string &img_path, int set_id){
     ImageDatabase* imdb = (ImageDatabase*)handler;
     cv::Mat image = cv::imread(img_path, CV_LOAD_IMAGE_UNCHANGED);
@@ -43,6 +73,7 @@ API_EXPORT query_result query_list(void* handler, const char* pData, int nWidth,
     qr.confidence = id_query.second;
     return  qr;
 }
+#endif
 
 API_EXPORT bool erase(void* handler, int id) {
     ImageDatabase* imdb = (ImageDatabase*)handler;

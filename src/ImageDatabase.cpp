@@ -3,79 +3,6 @@
 //
 
 #include "ImageDatabase.h"
-#define DEBUG_INFO_Q 1
-#if 0
-#include <opencv2/xfeatures2d/nonfree.hpp>
-template <typename T>
-void reduceVector(std::vector<T> &v, std::vector<uchar> status)
-{
-    int j = 0;
-    for (int i = 0; i < int(v.size()); i++)
-    {
-        if (status[i]==1)
-            v[j++] = v[i];
-    }
-    v.resize(j);
-}
-
-int minHessian = 400;
-int reserve_num = 50;
-double chkBySurf(const cv::Mat& img_1,const cv::Mat& img_2)//SURF算法
-{
-    cv::Ptr<cv::Feature2D> f2d_surf= cv::xfeatures2d::SURF::create(minHessian);
-    std::vector<cv::KeyPoint> keypoints_1, keypoints_2;
-    cv::Mat descriptors_1, descriptors_2;
-    f2d_surf->detectAndCompute( img_1, cv::Mat(), keypoints_1, descriptors_1 );
-    f2d_surf->detectAndCompute( img_2, cv::Mat(), keypoints_2, descriptors_2 );
-    cv::BFMatcher matcher(cv::NORM_L2);
-    // cv::Ptr<cv::Feature2D> f2d = cv::xfeatures2d::SURF::create(minHessian);
-    // vector<KeyPoint> keypoints_1, keypoints_2;
-    // f2d->detect(img_1, keypoints_1);
-    // f2d->detect(img_2, keypoints_2);
-    // Mat descriptors_1, descriptors_2;
-    // f2d->compute(img_1, keypoints_1, descriptors_1);
-    // f2d->compute(img_2, keypoints_2, descriptors_2);
-    // BFMatcher matcher;
-    std::vector<cv::DMatch> matches;
-    matcher.match(descriptors_1, descriptors_2, matches);
-
-    nth_element(matches.begin(), matches.begin()+reserve_num, matches.end());   //提取出前最佳匹配结果
-    matches.erase(matches.begin()+reserve_num, matches.end());    //剔除掉其余的匹配结果
-    std::vector<cv::KeyPoint> kpm_1, kpm_2;
-    for( size_t m = 0; m < matches.size(); m++ )
-    {
-        int i1 = matches[m].queryIdx;
-        int i2 = matches[m].trainIdx;
-        kpm_1.push_back(keypoints_1[i1]);
-        kpm_2.push_back(keypoints_2[i2]);
-    }
-    std::vector<cv::Point2f> kp1, kp2;
-    cv::KeyPoint::convert(kpm_1, kp1);
-    cv::KeyPoint::convert(kpm_2, kp2);
-    vector<unsigned char> status;
-    cv::findFundamentalMat(kp1, kp2, cv::FM_RANSAC, 0.5, 0.99, status);
-    reduceVector(kp1, status);
-    reduceVector(kp2, status);
-    int measure_num = kp1.size();
-    double sum_dis=0, avg_dis=0, variance=0;
-    std::vector<double> dist;
-    for (int i = 0; i < measure_num; i++)
-    {
-        cv::Point2d diff = cv::Point2d(kp2[i]-kp1[i]);
-        double distance = sqrt(diff.x*diff.x+diff.y*diff.y);
-        dist.push_back(distance);
-        sum_dis+=distance;
-    }
-    avg_dis = sum_dis / measure_num;
-    for (int i = 0; i < measure_num; i++)
-    {
-        double d = (dist[i]-avg_dis);
-        variance += d*d;
-    }
-    variance /= measure_num;
-    return variance;
-}
-#endif
 
 ImageDatabase::ImageDatabase(string voc_path, std::string _pattern_file){
     BriefVocabulary* voc = new BriefVocabulary(voc_path);
@@ -116,6 +43,17 @@ void ImageDatabase::computeBRIEFPoint(const cv::Mat &image, cv::Mat &image_blur,
     m_extractor(image_blur, keypoints, brief_descriptors);
 }
 
+#ifdef DEBUG
+void ImageDatabase::addImage(const cv::Mat &image, int set_id, int set_id_index) {
+    cv::Mat image_blur;
+    blurImage4Brief(image, image_blur);
+    vector<cv::KeyPoint> keypoints;
+    vector<BRIEF::bitset> brief_descriptors;
+    computeBRIEFPoint(image,image_blur,keypoints,brief_descriptors);
+    db.add(brief_descriptors);
+    imageset_id.push_back(make_pair(set_id,set_id_index));
+}
+#else
 void ImageDatabase::addImage(const cv::Mat &image, int set_id) {
     cv::Mat image_blur;
     blurImage4Brief(image, image_blur);
@@ -125,6 +63,7 @@ void ImageDatabase::addImage(const cv::Mat &image, int set_id) {
     db.add(brief_descriptors);
     imageset_id.push_back(set_id);
 }
+#endif
 
 bool ImageDatabase::erase(int id) {
     if(id > imageset_id.size()) {
@@ -136,7 +75,9 @@ bool ImageDatabase::erase(int id) {
     return true;
 };
 
-int ImageDatabase::query(cv::Mat image){
+
+#ifdef DEBUG
+pair<int,int> ImageDatabase::query(cv::Mat image){
     cv::Mat image_blur;
     blurImage4Brief(image, image_blur);
     vector<cv::KeyPoint> keypoints;
@@ -144,24 +85,33 @@ int ImageDatabase::query(cv::Mat image){
     computeBRIEFPoint(image,image_blur,keypoints,brief_descriptors);
     db.query(brief_descriptors, ret, 4, imageset_id.size());
 
-    if (ret.size() >= 1 && ret[0].Score > 0.0001) {
+    if (ret.size() >= 1 && ret[0].Score > 0.005) {
         cout << "ret[0].Score:" << ret[0].Score << endl;
+        printf("%d, %d\n",imageset_id[ret[0].Id],ret[0].Id);
         return imageset_id[ret[0].Id];
     }
     else {
-        return -1;
+        return make_pair(-1,-1);
     }
 }
 
-pair<int, double> ImageDatabase::query_list(const std::vector<cv::Mat>& image_list) {//根据这一个list中的图片直接在当次判断出当前场景ID
-    int window_size = image_list.size();
-    std::vector<pair<int, double>> window_id_list;
-    std::vector<pair<int, pair<int, double>>> vote_window;
-    int vote_array[window_size][scene_num];
+pair<int, double> ImageDatabase::query_list(int set_id, const std::vector<cv::Mat>& image_list){//根据这一个list中的图片直接在当次判断出当前场景ID
+    int list_size=image_list.size();
+    std::vector<pair<int,double>> window_id_list;
+    std::vector<pair<int,pair<int,double>>> vote_window;
+    std::vector<pair<int,int>> q_id0;
+    std::vector<vector<pair<pair<int,int>,double>>> q_ret4;
+    int trust_id=scene_num+1;
+    int high_rate_cnt=0;
+
+     #if 1
+
+    int vote_array[list_size][scene_num];
     int count_result[4][scene_num];
-//    vector<pair<int,int>> count_result;
-//    double vote_score[window_size][scene_num];
-    for (int i = 0; i < window_size; i++) {
+
+    for (size_t i = 0; i < scene_num; i++) vote_window.push_back(make_pair(i,make_pair(0,0.0)));
+
+    for (int i = 0; i < list_size; i++) {
         for (int j = 0; j < scene_num; j++) {
             vote_array[i][j] = 0;
         }
@@ -171,28 +121,35 @@ pair<int, double> ImageDatabase::query_list(const std::vector<cv::Mat>& image_li
             count_result[i][j] = 0;
         }
     }
-    for (size_t i = 0; i < window_size; i++) {//query
+    for (size_t i = 0; i < list_size; i++) {//query
         cv::Mat image_blur;
         blurImage4Brief(image_list[i], image_blur);
         vector<cv::KeyPoint> keypoints;
         vector<BRIEF::bitset> brief_descriptors;
         computeBRIEFPoint(image_list[i], image_blur, keypoints, brief_descriptors);
         db.query(brief_descriptors, ret, 4, imageset_id.size());
+        vector<pair<pair<int,int>,double>> ret4;
         if (ret.size() >= 1 && ret[0].Score > 0.0001) {
             for (int j = 0; j < ret.size(); j++) {
-                vote_array[i][imageset_id[ret[j].Id]]++;
+                vote_array[i][imageset_id[ret[j].Id].first]++;
+                // vote_window[imageset_id[ret[j].Id]].second.first++;
+                vote_window[imageset_id[ret[j].Id].first].second.second+=ret[j].Score;
+                ret4.push_back(make_pair(imageset_id[ret[j].Id],ret[j].Score));
             }
+            q_id0.push_back(imageset_id[ret[0].Id]);
+            q_ret4.push_back(ret4);
         }
     }
+
     if(DEBUG_INFO_Q) {
-        for (int i = 0; i < window_size; i++) {
+        for (int i = 0; i < list_size; i++) {
             for (int j = 0; j < scene_num; j++) {
                 cout << vote_array[i][j] << " ";
             }
             cout << endl;
         }
     }
-    for (int i = 0; i < window_size; i++) {
+    for (int i = 0; i < list_size; i++) {
         for (int j = 0; j < scene_num; j++) {
             if (vote_array[i][j] == 4) count_result[0][j]++;
             else if (vote_array[i][j] == 3) count_result[1][j]++;
@@ -200,15 +157,77 @@ pair<int, double> ImageDatabase::query_list(const std::vector<cv::Mat>& image_li
             else if (vote_array[i][j] == 1) count_result[3][j]++;
         }
     }
-if(DEBUG_INFO_Q) {
-    cout << "------------" << endl;
-    for (int i = 0; i < 4; i++) {
-        for (int j = 0; j < scene_num; j++) {
-            cout << count_result[i][j] << " ";
+
+    std::vector<pair<int,double>> weight_statistics;
+    for (size_t i = 0; i < scene_num; i++) weight_statistics.push_back(make_pair(i,0));
+    const int w[4]={8,6,3,1};
+    if(DEBUG_INFO_Q) {
+        cout << "------------" << endl;
+        for (int i = 0; i < 4; i++) {
+            for (int j = 0; j < scene_num; j++) {
+                cout << count_result[i][j] << " ";
+
+                vote_window[j].second.first+=count_result[i][j]*w[i];
+
+                if(count_result[i][j]>0)vote_window[j].second.second*=((double)(5-i))/4;
+            }
+            cout << endl;
+        }
+    }
+
+
+    sort(vote_window.begin(), vote_window.end(),
+            [](const pair<int, pair<int,double>> &a, const pair<int, pair<int,double>> &b) {
+            if(a.second.first == b.second.first)
+                 return a.second.second > b.second.second;
+            else return a.second.first > b.second.first;
+        });//降序排列
+    if(DEBUG_INFO_Q) {
+        cout << "------------" << endl;
+        for (size_t i = 0; i < scene_num; i++)
+        {
+            printf("%4d ",  vote_window[i].first);
+        }
+        cout << endl;
+        for (size_t i = 0; i < scene_num; i++)
+        {
+            printf("%4d ",  vote_window[i].second.first);
+        }
+        cout << endl;
+        for (size_t i = 0; i < scene_num; i++)
+        {
+            printf("%.2f ",  vote_window[i].second.second);
         }
         cout << endl;
     }
-}
+    printf("----------------%d-%d\n",set_id,vote_window[0].first);
+    if(vote_window[0].first!=set_id)
+    {
+        for(int i=0; i< list_size; i++)
+        {
+            for (size_t j = 0; j < 4; j++)
+            {
+                printf("=========set_id:%d, current list[%d] - q_ret[%d].id:%d score:%.4f\n",set_id, i , j, q_ret4[i][j].first.first, q_ret4[i][j].second);
+                cv::Mat imageQr = cv::imread(images_DBList[q_ret4[i][j].first.first].second[q_ret4[i][j].first.second], CV_LOAD_IMAGE_UNCHANGED);
+                cv::Mat img, show_img;
+                // imgSIFT(image, imageDB);
+                // imgSURF(image, imageDB);
+                cv::hconcat(imageQr, image_list[i], show_img);
+                // img.convertTo(show_img, CV_8UC3);
+                // cvCvtColor(&img, &show_img, cv::COLOR_GRAY2RGB);
+                char buf1[10],buf2[10];
+                sprintf(buf1, "ret: %d", q_ret4[i][j].first.first);
+                cv::putText(show_img, buf1, cv::Point(10,10), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
+                sprintf(buf2, "set_id: %d", set_id);
+                cv::putText(show_img, buf2, cv::Point(650,10), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
+                cv::imshow("matched", show_img);
+                cv::waitKey(0);
+            }
+        }
+    }
+    return make_pair(vote_window[0].first,0);
+
+    #if 0
     int max_id = -1;
     int max_cnt = 0;
     for(int i = 0; i < scene_num; i++) {
@@ -235,10 +254,289 @@ if(DEBUG_INFO_Q) {
         }
     }
     if(max_id != -1) return pair<int, double> (max_id, 0);
+    #endif
 
-#if 0
+    #else
+    for (size_t i = 0; i < list_size; i++)//query
+    {
+        cv::Mat image_blur;
+        blurImage4Brief(image_list[i], image_blur);
+        vector<cv::KeyPoint> keypoints;
+        vector<BRIEF::bitset> brief_descriptors;
+        computeBRIEFPoint(image_list[i],image_blur,keypoints,brief_descriptors);
+        db.query(brief_descriptors, ret, 4, imageset_id.size());
+        printf("%d|   %d-%.4f,  %d-%.4f,  %d-%.4f,  %d-%.4f;\n", i,
+            imageset_id[ret[0].Id].first, ret[0].Score, imageset_id[ret[1].Id].first, ret[1].Score, 
+            imageset_id[ret[2].Id].first, ret[2].Score, imageset_id[ret[3].Id].first, ret[3].Score);
+        if (ret.size() >= 1 && ret[0].Score > 0.0001){
+            window_id_list.push_back(make_pair(imageset_id[ret[0].Id].first,ret[0].Score));
+            q_id0.push_back(imageset_id[ret[0].Id]);
+        }
+    }
+    sort(window_id_list.begin(), window_id_list.end(),
+            [](const pair<int, double> &a, const pair<int, double> &b) {
+            return a.second > b.second;
+        });//降序排列
+
+    for (size_t i = 0; i < scene_num+2; i++) vote_window.push_back(make_pair(i,make_pair(0,0)));//先把统计窗口中的ID放进去
+    for (size_t i = 0; i < window_id_list.size(); i++) //再把每个ID出现的次数放进去
+    {
+        if(window_id_list[i].first<scene_num)
+        {
+            vote_window[window_id_list[i].first].second.first++;
+            vote_window[window_id_list[i].first].second.second+=window_id_list[i].second;
+        }
+    }
+    if(window_id_list[0].second/window_id_list[1].second > 1.5)
+    vote_window[window_id_list[0].first].second.first+=2;
+    #if 1
+    vote_window[last_id].second.first++;
+    sort(vote_window.begin(), vote_window.end(),
+            [](const pair<int, pair<int,double>> &a, const pair<int, pair<int,double>> &b) {
+            if(a.second.first == b.second.first)
+                 return a.second.second > b.second.second;
+            else return a.second.first > b.second.first;
+        });//降序排列
+    #else
+    sort(vote_window.begin(), vote_window.end(),
+            [](const pair<int, pair<int,double>> &a, const pair<int, pair<int,double>> &b) {
+                 return a.second.second > b.second.second;
+        });//降序排列
+    #endif
+
+    // if(DEBUG_INFO)
+    if(1)
+    {
+        printf("-----------------------------------------------------------------------(%d %.4f),(%d %.4f),(%d %.4f)  last:%d,%d\n",
+        window_id_list[0].first,window_id_list[0].second,
+        window_id_list[2].first,window_id_list[2].second,
+        window_id_list[3].first,window_id_list[3].second,
+        last_id,id_cnt);
+        printf("vote ID:  ");
+        for (size_t i = 0; i < vote_window.size(); i++) printf("   %4d",vote_window[i].first);
+        printf("\nvote cnt: ");
+        for (size_t i = 0; i < vote_window.size(); i++) printf("   %4d",vote_window[i].second.first);
+        printf("\nvote scr: ");
+        for (size_t i = 0; i < vote_window.size(); i++) printf("   %.2f",vote_window[i].second.second);
+        printf("\n");
+    }
+
+    double confidence1 = (double)vote_window[0].second.first/(double)list_size;//置信度最高
+    double confidence2 = (double)vote_window[1].second.first/(double)list_size;
+
+    printf("----------------%d-%d\n",set_id,vote_window[0].first);
+    if(vote_window[0].first!=set_id)
+    {
+        for(int i=0; i< list_size; i++)
+        {
+            printf("<<<<<<<<<<%d-%d\n",set_id,q_id0[i].first);
+            cv::Mat imageDB = cv::imread(images_DBList[q_id0[i].first].second[q_id0[i].second], CV_LOAD_IMAGE_UNCHANGED);
+            cv::Mat img, show_img;
+            // imgSIFT(image, imageDB);
+            // imgSURF(image, imageDB);
+            cv::hconcat(image_list[i], imageDB, show_img);
+            // img.convertTo(show_img, CV_8UC3);
+            // cvCvtColor(&img, &show_img, cv::COLOR_GRAY2RGB);
+            char buf1[10],buf2[10];
+            sprintf(buf1, "test: %d", q_id0[i].first);
+            cv::putText(show_img, buf1, cv::Point(10,10), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
+            sprintf(buf2, "query: %d", set_id);
+            cv::putText(show_img, buf2, cv::Point(650,10), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
+            cv::imshow("matched", show_img);
+            cv::waitKey(0);
+        }
+    }
+    return make_pair(vote_window[0].first, confidence1);
+    #endif
+}
+
+void ImageDatabase::saveImagePath(const int id, const vector<string> &imagesList) {
+    images_DBList.push_back(make_pair(id,imagesList));
+}
+#else
+int ImageDatabase::query(cv::Mat image){
+    cv::Mat image_blur;
+    blurImage4Brief(image, image_blur);
+    vector<cv::KeyPoint> keypoints;
+    vector<BRIEF::bitset> brief_descriptors;
+    computeBRIEFPoint(image,image_blur,keypoints,brief_descriptors);
+    db.query(brief_descriptors, ret, 4, imageset_id.size());
+
+    if (ret.size() >= 1 && ret[0].Score > 0.0001) {
+        cout << "ret[0].Score:" << ret[0].Score << endl;
+        return imageset_id[ret[0].Id];
+    }
+    else {
+        return -1;
+    }
+}
+
+pair<int, double> ImageDatabase::query_list(const std::vector<cv::Mat>& image_list) {//根据这一个list中的图片直接在当次判断出当前场景ID
+    int list_size = image_list.size();
+    std::vector<pair<int, double>> window_id_list;
+    std::vector<pair<int, pair<int, double>>> vote_window;
+    int vote_array[list_size][scene_num];
+    int count_result[4][scene_num];
+
+    #if 1
+
+    for (size_t i = 0; i < scene_num; i++) vote_window.push_back(make_pair(i,make_pair(0,0.0)));
+//    vector<pair<int,int>> count_result;
+//    double vote_score[list_size][scene_num];
+    for (int i = 0; i < list_size; i++) {
+        for (int j = 0; j < scene_num; j++) {
+            vote_array[i][j] = 0;
+        }
+    }
+    for (int i = 0; i < 4; i++) {
+        for (int j = 0; j < scene_num; j++) {
+            count_result[i][j] = 0;
+        }
+    }
+    for (size_t i = 0; i < list_size; i++) {//query
+        cv::Mat image_blur;
+        blurImage4Brief(image_list[i], image_blur);
+        vector<cv::KeyPoint> keypoints;
+        vector<BRIEF::bitset> brief_descriptors;
+        computeBRIEFPoint(image_list[i], image_blur, keypoints, brief_descriptors);
+        db.query(brief_descriptors, ret, 4, imageset_id.size());
+        if (ret.size() >= 1 && ret[0].Score > 0.0001) {
+            for (int j = 0; j < ret.size(); j++) {
+                vote_array[i][imageset_id[ret[j].Id]]++;
+                // vote_window[imageset_id[ret[j].Id]].second.first++;
+                vote_window[imageset_id[ret[j].Id]].second.second+=ret[j].Score;
+            }
+        }
+    }
+
+    if(DEBUG_INFO_Q) {
+        for (int i = 0; i < list_size; i++) {
+            for (int j = 0; j < scene_num; j++) {
+                cout << vote_array[i][j] << " ";
+            }
+            cout << endl;
+        }
+    }
+    for (int i = 0; i < list_size; i++) {
+        for (int j = 0; j < scene_num; j++) {
+            if (vote_array[i][j] == 4) count_result[0][j]++;
+            else if (vote_array[i][j] == 3) count_result[1][j]++;
+            else if (vote_array[i][j] == 2) count_result[2][j]++;
+            else if (vote_array[i][j] == 1) count_result[3][j]++;
+        }
+    }
+
+    std::vector<pair<int,double>> weight_statistics;
+    for (size_t i = 0; i < scene_num; i++) weight_statistics.push_back(make_pair(i,0));
+    const int w[4]={8,6,3,1};
+    if(DEBUG_INFO_Q) {
+        cout << "------------" << endl;
+        for (int i = 0; i < 4; i++) {
+            for (int j = 0; j < scene_num; j++) {
+                cout << count_result[i][j] << " ";
+                // weight_statistics[j].second+=count_result[i][j]*(4-i);
+
+                vote_window[j].second.first+=count_result[i][j]*w[i];
+
+                if(count_result[i][j]>0)vote_window[j].second.second*=((double)(5-i))/4;
+            }
+            cout << endl;
+        }
+
+        // cout << "------------" << endl;
+        // for (size_t i = 0; i < scene_num; i++)
+        // {
+        //     printf("%4d ",  weight_statistics[i].first);
+        // }
+        // cout << endl;
+        // for (size_t i = 0; i < scene_num; i++)
+        // {
+        //     printf("%.2f ",  weight_statistics[i].second);
+        // }
+        // cout << endl;
+        
+    }
+
+    // sort(weight_statistics.begin(), weight_statistics.end(),
+    //         [](const pair<int, double> &a, const pair<int, double> &b) {
+    //         return a.second > b.second;
+    //     });//降序排列
+        
+    // return make_pair(weight_statistics[0].first,weight_statistics[0].second/40);
+
+    sort(vote_window.begin(), vote_window.end(),
+            [](const pair<int, pair<int,double>> &a, const pair<int, pair<int,double>> &b) {
+            if(a.second.first == b.second.first)
+                 return a.second.second > b.second.second;
+            else return a.second.first > b.second.first;
+        });//降序排列
+    if(DEBUG_INFO_Q) {
+        cout << "------------" << endl;
+        for (size_t i = 0; i < scene_num; i++)
+        {
+            printf("%4d ",  vote_window[i].first);
+        }
+        cout << endl;
+        for (size_t i = 0; i < scene_num; i++)
+        {
+            printf("%4d ",  vote_window[i].second.first);
+        }
+        cout << endl;
+        for (size_t i = 0; i < scene_num; i++)
+        {
+            printf("%.2f ",  vote_window[i].second.second);
+        }
+        cout << endl;
+    }
+
+    printf("lastid:%d\n",  last_id);
+
+    // int x=0;
+    // if(((double)vote_window[0].second.first / (double)vote_window[1].second.first < 1.3) &&
+    //     (vote_window[0].second.second / vote_window[1].second.second < 1.3))
+    // {
+    //     if(vote_window[1].first == last_id) x = 1;
+    // }
+    // last_id = vote_window[x].first;
+
+    // if(last_id1 == last_id) id_cnt++;
+    // else id_cnt=0;
+    // last_id1 = last_id;
+
+    return make_pair(vote_window[0].first,0);
+
+    #if 0
+    int max_id = -1;
+    int max_cnt = 0;
+    for(int i = 0; i < scene_num; i++) {
+        if(count_result[0][i] != 0) {
+            max_id = max_cnt < count_result[0][i]? i : max_cnt;
+        }
+    }
+    if(max_id != -1) return pair<int, double> (max_id, 0);
+    for(int i = 0; i < scene_num; i++) {
+        if(count_result[1][i] != 0) {
+            max_id = max_cnt < count_result[1][i]? i : max_cnt;
+        }
+    }
+    if(max_id != -1) return pair<int, double> (max_id, 0);
+    for(int i = 0; i < scene_num; i++) {
+        if(count_result[2][i] != 0) {
+            max_id = max_cnt < count_result[2][i]? i : max_cnt;
+        }
+    }
+    if(max_id != -1) return pair<int, double> (max_id, 0);
+    for(int i = 0; i < scene_num; i++) {
+        if(count_result[3][i] != 0) {
+            max_id = max_cnt < count_result[3][i]? i : max_cnt;
+        }
+    }
+    if(max_id != -1) return pair<int, double> (max_id, 0);
+    #endif
+
+    #else
     int trust_id=scene_num+1;
-    for (size_t i = 0; i < window_size; i++)//query
+    for (size_t i = 0; i < list_size; i++)//query
     {
         cv::Mat image_blur;
         blurImage4Brief(image_list[i], image_blur);
@@ -317,8 +615,8 @@ if(DEBUG_INFO_Q) {
         printf("\n");
     }
 
-    double confidence1 = (double)vote_window[0].second.first/(double)window_size;//置信度最高
-    double confidence2 = (double)vote_window[1].second.first/(double)window_size;
+    double confidence1 = (double)vote_window[0].second.first/(double)list_size;//置信度最高
+    double confidence2 = (double)vote_window[1].second.first/(double)list_size;
 
     int x=0;
     if(((double)vote_window[0].second.first/(double)vote_window[1].second.first<2.0)&&
@@ -349,10 +647,10 @@ if(DEBUG_INFO_Q) {
     else id_cnt=0;
     last_id1 = last_id;
 
-    double confidence = (double)vote_window[x].second.first/(double)window_size;
+    double confidence = (double)vote_window[x].second.first/(double)list_size;
 
     return make_pair(vote_window[x].first, confidence);
-#endif
+    #endif
 }
 
 void ImageDatabase::extractFeatureVector(const cv::Mat &src, vector<BRIEF::bitset> &brief_descriptors) {
@@ -361,3 +659,4 @@ void ImageDatabase::extractFeatureVector(const cv::Mat &src, vector<BRIEF::bitse
     vector<cv::KeyPoint> keypoints;
     computeBRIEFPoint(src,image_blur,keypoints,brief_descriptors);
 }
+#endif

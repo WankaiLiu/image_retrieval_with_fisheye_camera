@@ -63,9 +63,9 @@ void LoadPathList( const string &fileListsPath, vector<string> &fileVec)
 
 int main()
 {
-    int addStep = 10;//135;//
-    int queryStep = 15;//down sample to 1fps
-    int query_list_num = 10;//collect images in 10s to upload and query
+    int addStep = 27;//135;//
+    int queryStep = 9;//down sample FPS = 30/(queryStep+1) fps
+    int query_list_num = 15;//query period = query_list_num/FPS
     const int IMG_WIDTH = 640;
     const int IMG_HEIGHT = 400;
     string voc_path= "../config/loopC_vocdata.bin";
@@ -76,7 +76,7 @@ int main()
     pattern_file = "/home/what/disk/works/image_retrieval/loopC_pattern.yml";
     voc_path = "/home/what/disk/works/image_retrieval/loopC_vocdata.bin";
     fileListsPath = "../config/dlist2.txt";
-    testListsPath = "../config/dlist1.txt";
+    testListsPath = "../config/dlist3.txt";
 #endif
 //    ImageDatabase imdb(voc_path, pattern_file);
     void *handler1 = initDataBase(voc_path, pattern_file);
@@ -97,12 +97,19 @@ int main()
             LoadImages(image_path, timeStamps, imagesList);
             std::cout << "The size of image list is " << imagesList.size() << " downsample to :" <<
                       imagesList.size() / addStep << endl;
+            #ifdef DEBUGD
+            saveImagePath(handler1, i,imagesList);
+            #endif
         }
         for (int ni = 0; ni < imagesList.size(); ni += addStep) {
 //            cv::Mat image = cv::imread(imagesList[ni], CV_LOAD_IMAGE_UNCHANGED);
 //            imdb.extractFeatureVector(image, brief_descriptors);
 //            imdb.addImage(image, i);
+              #ifdef DEBUGD
+              addImage(handler1,imagesList[ni], i, ni);
+              #else
               addImage(handler1,imagesList[ni],i);
+              #endif
         }
         counterDb += imagesList.size() / addStep;
     }
@@ -112,7 +119,7 @@ int main()
     vector<int> counter1,counter2,counter3;
     TicToc t_queryImage;
 //    char image_data[IMG_WIDTH*IMG_HEIGHT*query_list_num];
-    char* image_data =(char *) malloc(IMG_WIDTH*IMG_HEIGHT*query_list_num);
+    // char* image_data =(char *) malloc(IMG_WIDTH*IMG_HEIGHT*query_list_num);
     for(auto i = 0; i < fileVec.size(); i++) {
 
 
@@ -125,11 +132,11 @@ int main()
         vector<string> imagesList;
         if (!image_path.empty()) {
             LoadImages(image_path, timeStamps, imagesList);
-
+            std::cout << "The size of image list is " << imagesList.size() << endl;
         }
 
         int add_cycle = 0;
-
+        char image_data[IMG_WIDTH*IMG_HEIGHT*query_list_num];
         char * image_data_ptr = image_data;
         int img_size = IMG_WIDTH*IMG_HEIGHT;
         for (int ni = 0; ni < imagesList.size(); ni += queryStep) {
@@ -143,7 +150,11 @@ int main()
             }
             else
             {
+                #ifdef DEBUGD
+                query_result qr = query_list(handler1, i, image_data, IMG_WIDTH, IMG_HEIGHT, query_list_num);
+                #else
                 query_result qr = query_list(handler1, image_data, IMG_WIDTH, IMG_HEIGHT, query_list_num);
+                #endif
                 int id = qr.set_id;
                 double confidence = qr.confidence;
                 counter1[i]++;
@@ -157,7 +168,7 @@ int main()
         }
         counterQuery += imagesList.size() / queryStep;
     }
-    free(image_data);
+    // free(image_data);
     queryImageTimeCost = t_loadImage.toc();
     for(auto i = 0; i < fileVec.size(); i++) {
         std::cout << "set id: " << i << endl;

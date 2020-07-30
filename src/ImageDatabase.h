@@ -8,23 +8,38 @@
 #include "brief.h"
 
 #define DEBUG_INFO 0
+#define DEBUG 1
+#define DEBUG_INFO_Q 1
 
 
 class ImageDatabase {
 public:
     ImageDatabase(string voc_path, std::string _pattern_file);
 
+    #ifdef DEBUG
+    std::vector<std::pair<int,std::vector<std::string>>> images_DBList;
+    std::vector<pair<int,string>> images_QRList;
+    void saveImagePath(const int id, const vector<string> &imagesList);
+    void addImage(const cv::Mat &image, int set_id, int set_id_index);
+    pair<int,int> query(cv::Mat image);
+    pair<int, double> query_list(int set_id, const std::vector<cv::Mat>& image_list);
+    #else
     void addImage(const cv::Mat &image, int set_id);
     int query(cv::Mat image);
+    pair<int, double> query_list(const std::vector<cv::Mat>& image_list);
+    #endif
     bool erase(int id);
     void extractFeatureVector(const cv::Mat &src, vector<BRIEF::bitset> &brief_descriptors);
 
     int scene_num;
-    pair<int, double> query_list(const std::vector<cv::Mat>& image_list);
 
 private:
     int counter;
+    #ifdef DEBUG
+    std::vector<std::pair<int,int>> imageset_id;
+    #else
     vector<int> imageset_id;
+    #endif
     BriefDatabase db;
     std::string pattern_file;
     DBoW2::QueryResults ret;

@@ -38,4 +38,12 @@ API_EXPORT query_result query_list(void* handler, const char* pData, int nWidth,
 API_EXPORT bool erase(void* handler, int id);
 API_EXPORT bool releaseDataBase(void* handler);
 
+//local debug functions
+#define DEBUGD 1
+#ifdef DEBUGD
+void saveImagePath(void* handler, const int id, const vector<string> &imagesList);
+void addImage(void* handler, const string &img_path, int set_id, int set_id_index);
+query_result query_list(void* handler, int set_id, const char* pData, int nWidth, int nHeight, int numFrame);
+#endif
+
 #endif //IMAGE_RETRIEVAL_IMDB_SDK_H
