@@ -12,12 +12,27 @@
 #define DEBUG_INFO_Q 1
 
 
+struct db_info
+{
+    int id;
+    int index;
+    vector<cv::KeyPoint> kps;
+    vector<BRIEF::bitset> brf_desc;
+};
+
+struct qr_info
+{
+    int id;
+    int index;
+    double score;
+};
+
 class ImageDatabase {
 public:
     ImageDatabase(string voc_path, std::string _pattern_file);
 
     #ifdef DEBUG
-    std::vector<std::pair<int,std::vector<std::string>>> images_DBList;
+    std::vector<pair<int,vector<string>>> images_DBList;
     std::vector<pair<int,string>> images_QRList;
     void saveImagePath(const int id, const vector<string> &imagesList);
     void addImage(const cv::Mat &image, int set_id, int set_id_index);
@@ -32,15 +47,16 @@ public:
     void extractFeatureVector(const cv::Mat &src, vector<BRIEF::bitset> &brief_descriptors);
 
     int scene_num;
+    BriefDatabase db;
 
 private:
     int counter;
     #ifdef DEBUG
-    std::vector<std::pair<int,int>> imageset_id;
+    // std::vector<std::pair<int,int>> imageset_id;
+    std::vector<db_info> imageset_id;
     #else
     vector<int> imageset_id;
     #endif
-    BriefDatabase db;
     std::string pattern_file;
     DBoW2::QueryResults ret;
     void blurImage4Brief(const cv::Mat &src, cv::Mat &dst);
