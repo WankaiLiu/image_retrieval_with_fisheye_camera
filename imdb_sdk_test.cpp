@@ -64,8 +64,8 @@ void LoadPathList( const string &fileListsPath, vector<string> &fileVec)
 int main()
 {
     int addStep = 27;//135;//
-    int queryStep = 9;//down sample to 1fps
-    int query_list_num = 15;//collect images in 10s to upload and query
+    int queryStep = 14;//down sample to 1fps
+    int query_list_num = 10;//collect images in 10s to upload and query
     const int IMG_WIDTH = 640;
     const int IMG_HEIGHT = 400;
     string voc_path= "../config/loopC_vocdata.bin";
@@ -76,7 +76,7 @@ int main()
     pattern_file = "/home/what/disk/works/image_retrieval/loopC_pattern.yml";
     voc_path = "/home/what/disk/works/image_retrieval/loopC_vocdata.bin";
     fileListsPath = "../config/dlist2.txt";
-    testListsPath = "../config/dlist1.txt";
+    testListsPath = "../config/dlist3.txt";
 #endif
 //    ImageDatabase imdb(voc_path, pattern_file);
     void *handler1 = initDataBase(voc_path, pattern_file);

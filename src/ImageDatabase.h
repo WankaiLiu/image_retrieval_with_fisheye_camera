@@ -8,7 +8,15 @@
 #include "brief.h"
 
 #define DEBUG_INFO 0
+#define DEBUG_INFO_Q 0
 
+struct db_info
+{
+    int id;
+    int index;
+    vector<cv::KeyPoint> kps;
+    vector<BRIEF::bitset> brf_desc;
+};
 
 class ImageDatabase {
 public:
@@ -24,7 +32,7 @@ public:
 
 private:
     int counter;
-    vector<int> imageset_id;
+    std::vector<db_info> imageset_id;
     BriefDatabase db;
     std::string pattern_file;
     DBoW2::QueryResults ret;
