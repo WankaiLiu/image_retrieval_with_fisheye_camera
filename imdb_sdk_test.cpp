@@ -61,7 +61,7 @@ void LoadPathList( const string &fileListsPath, vector<string> &fileVec)
 }
 
 
-int main()
+int main(int argc, char *argv[])
 {
     int addStep = 27;//135;//
     int queryStep = 9;//down sample FPS = 30/(queryStep+1) fps
@@ -87,6 +87,18 @@ int main()
     int counterDb = 0, counterQuery = 0;
 //    vector<BRIEF::bitset> brief_descriptors;
     for(auto i = 0; i < fileVec.size(); i++) {
+        try {
+            if(argc >= 2 ) {
+                for(int j = 1; j < argc; j++) {
+                    if(i == stoi(argv[j])){
+                        cout << "skip set:" << fileVec[i] << endl;
+                        continue;
+                    }
+                }
+            }
+        }
+        catch (...)
+        {}
 //        for(auto i = 0; i < 2; i++) {
 
             string base_path = fileVec[i];
