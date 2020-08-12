@@ -8,7 +8,7 @@
 #include "brief.h"
 
 #define DEBUG_INFO 0
-#define DEBUG 1
+#define DEBUG 0
 #define DEBUG_INFO_Q 1
 
 

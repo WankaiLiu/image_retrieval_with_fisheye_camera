@@ -64,8 +64,8 @@ void LoadPathList( const string &fileListsPath, vector<string> &fileVec)
 int main(int argc, char *argv[])
 {
     int addStep = 27;//135;//
-    int queryStep = 9;//down sample FPS = 30/(queryStep+1) fps
-    int query_list_num = 15;//query period = query_list_num/FPS
+    int queryStep = 15;//down sample FPS = 30/(queryStep+1) fps
+    int query_list_num = 10;//query period = query_list_num/FPS
     const int IMG_WIDTH = 640;
     const int IMG_HEIGHT = 400;
     string voc_path= "../config/loopC_vocdata.bin";
@@ -87,18 +87,8 @@ int main(int argc, char *argv[])
     int counterDb = 0, counterQuery = 0;
 //    vector<BRIEF::bitset> brief_descriptors;
     for(auto i = 0; i < fileVec.size(); i++) {
-        try {
-            if(argc >= 2 ) {
-                for(int j = 1; j < argc; j++) {
-                    if(i == stoi(argv[j])){
-                        cout << "skip set:" << fileVec[i] << endl;
-                        continue;
-                    }
-                }
-            }
-        }
-        catch (...)
-        {}
+        //
+
 //        for(auto i = 0; i < 2; i++) {
 
             string base_path = fileVec[i];
@@ -113,6 +103,21 @@ int main(int argc, char *argv[])
             saveImagePath(handler1, i,imagesList);
             #endif
         }
+        bool skip = false;
+        try {
+            if(argc >= 2 ) {
+                for(int j = 1; j < argc; j++) {
+                    if(i == stoi(argv[j])){
+                        cout << "skip set:" << fileVec[i] << endl;
+                        skip = true;
+                        break;
+                    }
+                }
+                if(skip) continue;
+            }
+        }
+        catch (...)
+        {}
         for (int ni = 0; ni < imagesList.size(); ni += addStep) {
 //            cv::Mat image = cv::imread(imagesList[ni], CV_LOAD_IMAGE_UNCHANGED);
 //            imdb.extractFeatureVector(image, brief_descriptors);
@@ -133,8 +138,6 @@ int main(int argc, char *argv[])
 //    char image_data[IMG_WIDTH*IMG_HEIGHT*query_list_num];
     // char* image_data =(char *) malloc(IMG_WIDTH*IMG_HEIGHT*query_list_num);
     for(auto i = 0; i < fileVec.size(); i++) {
-
-
         counter1.push_back(0);
         counter2.push_back(0);
         counter3.push_back(0);
@@ -183,11 +186,11 @@ int main(int argc, char *argv[])
     // free(image_data);
     queryImageTimeCost = t_loadImage.toc();
     for(auto i = 0; i < fileVec.size(); i++) {
-        std::cout << "set id: " << i << endl;
-        std::cout << "The match number is: " << counter2[i] << endl;
-        std::cout << "The failed number is: " << counter3[i] << endl;
-        std::cout << "The total number is: " << counter1[i] << endl;
-        std::cout << "Success rate is: " << 1.0f * counter2[i] / counter1[i] << endl << endl;
+        std::cout << "***set id: " << i << endl;
+        std::cout << "***The match number is: " << counter2[i] << endl;
+        std::cout << "***The failed number is: " << counter3[i] << endl;
+        std::cout << "***The total number is: " << counter1[i] << endl;
+        std::cout << "***Success rate is: " << 1.0f * counter2[i] / counter1[i] << endl << endl;
     }
     std::cout << "loadImageTimeCost(s) is: " << loadImageTimeCost / 1000 << endl;
     std::cout << "queryImageTimeCost(s) is: " << queryImageTimeCost / 1000 << endl;
