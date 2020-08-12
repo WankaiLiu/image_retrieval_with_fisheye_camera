@@ -47,8 +47,8 @@ void ImageDatabase::computeBRIEFPoint(const cv::Mat &image, cv::Mat &image_blur,
     m_extractor(image_blur, keypoints, brief_descriptors);
 }
 
-#ifdef DEBUG
-void ImageDatabase::addImage(const cv::Mat &image, int set_id, int set_id_index) {
+
+void ImageDatabase::addImage(const cv::Mat &image, int set_id) {
     cv::Mat image_blur;
     blurImage4Brief(image, image_blur);
     vector<cv::KeyPoint> keypoints;
@@ -58,22 +58,12 @@ void ImageDatabase::addImage(const cv::Mat &image, int set_id, int set_id_index)
     // imageset_id.push_back(make_pair(set_id,set_id_index));
     db_info db_info;
     db_info.id = set_id;
-    db_info.index = set_id_index;
+//    db_info.index = images_DBList[set_id].size();
     db_info.kps = keypoints;
     db_info.brf_desc = brief_descriptors;
     imageset_id.push_back(db_info);
 }
-#else
-void ImageDatabase::addImage(const cv::Mat &image, int set_id) {
-    cv::Mat image_blur;
-    blurImage4Brief(image, image_blur);
-    vector<cv::KeyPoint> keypoints;
-    vector<BRIEF::bitset> brief_descriptors;
-    computeBRIEFPoint(image,image_blur,keypoints,brief_descriptors);
-    db.add(brief_descriptors);
-    imageset_id.push_back(set_id);
-}
-#endif
+
 
 bool ImageDatabase::erase(int id) {
     if(id > imageset_id.size()) {
@@ -85,36 +75,6 @@ bool ImageDatabase::erase(int id) {
     return true;
 };
 
-
-#ifdef DEBUG
-void convert_bitset_to_Mat(vector<BRIEF::bitset> temp_brief_descriptors,cv::Mat& out_brief_descriptors_mat)
-{
-    //2.convert bitset to Mat
-    out_brief_descriptors_mat=cv::Mat::zeros(temp_brief_descriptors.size(),32,CV_8UC1);
-    int row=0;
-    for(vector<BRIEF::bitset> :: iterator iter = temp_brief_descriptors.begin(); iter!=temp_brief_descriptors.end();iter++)
-    {
-        BRIEF::bitset bits=*iter;
-
-        for (int i = 0; i < 32; i++)
-        {
-            char ch=' ';
-            int n_offset=i*8;
-            for (int j = 0; j < 8; j++)
-            {
-                if (bits.test(n_offset + j))	// 第i + j位为1
-                    ch |= (1 << j);
-                else
-                    ch &= ~(1 << j);
-            }
-            out_brief_descriptors_mat.at<uchar>(row, i)=(uchar)ch;
-        }
-        row++;
-    }
-
-}
-
-#endif
 pair<int,int> ImageDatabase::query(cv::Mat image){
     cv::Mat image_blur;
     blurImage4Brief(image, image_blur);
@@ -233,7 +193,6 @@ void concatImageAndDraw(const cv::Mat& cur_image, vector<cv::Point2f>& matched_p
     }
     cv::imshow(path, image_out);
     cv::waitKey(190);
-//    cv::imwrite(path,image_out);
 
 }
 void FundmantalMatrixRANSAC(const std::vector<cv::Point2f> &matched_2d_cur_norm,
@@ -247,35 +206,15 @@ void FundmantalMatrixRANSAC(const std::vector<cv::Point2f> &matched_2d_cur_norm,
     }
     if (n >= 8)
     {
-        //vector<cv::Point2f> tmp_cur(n), tmp_old(n);
-        //for (int i = 0; i < (int)matched_2d_cur_norm.size(); i++)
-        //{
-        //    double FOCAL_LENGTH = 460.0;
-        //    double tmp_x, tmp_y;
-        //    tmp_x = FOCAL_LENGTH * matched_2d_cur_norm[i].x + COL / 2.0;
-        //    tmp_y = FOCAL_LENGTH * matched_2d_cur_norm[i].y + ROW / 2.0;
-        //    tmp_cur[i] = cv::Point2f(tmp_x, tmp_y);
-
-        //    tmp_x = FOCAL_LENGTH * matched_2d_old_norm[i].x + COL / 2.0;
-        //    tmp_y = FOCAL_LENGTH * matched_2d_old_norm[i].y + ROW / 2.0;
-        //    tmp_old[i] = cv::Point2f(tmp_x, tmp_y);
-        //}
-        //cv::findFundamentalMat(tmp_cur, tmp_old, cv::FM_RANSAC, 3.0, 0.9, status);
--
         cv::findFundamentalMat(matched_2d_cur_norm, matched_2d_old_norm, cv::FM_RANSAC, 2.0 / 290, 0.9, status);
     }
 }
-pair<int, double> ImageDatabase::query_list(int set_id, const std::vector<cv::Mat>& image_list){//根据这一个list中的图片直接在当次判断出当前场景ID
+pair<int, double> ImageDatabase::query_list(const std::vector<cv::Mat>& image_list){//根据这一个list中的图片直接在当次判断出当前场景ID
     if(scene_num < 2) {
         cerr << "Please make sure the number of scen is larger than 2" << endl;
         return make_pair(-1, -1);
-
     }
     int list_size=image_list.size();
-    std::vector<pair<int,double>> window_id_list; //15
-    std::vector<pair<int,pair<int,double>>> vote_window; // 10 ids, count, score
-    std::vector<pair<int,int>> q_id0;
-    std::vector<vector<pair<pair<int,int>,double>>> q_ret4;
     int trust_id=scene_num+1;
     int high_rate_cnt=0;
     std::map<int,unordered_set<int>> result; //set_id, image_id
@@ -284,9 +223,6 @@ pair<int, double> ImageDatabase::query_list(int set_id, const std::vector<cv::Ma
     vector<float> vote_array_total(scene_num,0);
     int count_result[4][scene_num];
     int count_result_fun[4][scene_num];
-
-    for (size_t i = 0; i < scene_num; i++) vote_window.push_back(make_pair(i,make_pair(0,0.0)));
-
     for (int i = 0; i < list_size; i++) {
         for (int j = 0; j < scene_num; j++) {
             vote_array[i][j] = 0;
@@ -342,7 +278,6 @@ pair<int, double> ImageDatabase::query_list(int set_id, const std::vector<cv::Ma
             pts.pt.y = point(1);
             cv::Point2f pt2f_norm(point(0), point(1));
             matched_2d_cur_norm_base.push_back(pt2f_norm);
-            //keypoints_query_norm.push_back(pts);
         }
         if (ret.size() >= 1) {
             for (int j = 0; j < ret.size(); j++) {
@@ -373,13 +308,13 @@ pair<int, double> ImageDatabase::query_list(int set_id, const std::vector<cv::Ma
                 reduceVector(matched_2d_old, status);
                 reduceVector(matched_2d_cur_norm, status);
                 reduceVector(matched_2d_old_norm, status);
-                cv::Mat imageQr = cv::imread(images_DBList[dbInfo.id].second[dbInfo.index], CV_LOAD_IMAGE_UNCHANGED);
-                vector<cv::Scalar> matched_colors;
-                cv::RNG rng(time(0));
-                for (int ii = 0; ii < static_cast<int>(matched_2d_cur_norm.size()); ++ii) {
-                    cv::Scalar color(rng.uniform(0, 255), rng.uniform(0, 255), rng.uniform(0, 255));
-                    matched_colors.push_back(color);
-                }
+//                cv::Mat imageQr = cv::imread(images_DBList[dbInfo.id].second[dbInfo.index], CV_LOAD_IMAGE_UNCHANGED);
+//                vector<cv::Scalar> matched_colors;
+//                cv::RNG rng(time(0));
+//                for (int ii = 0; ii < static_cast<int>(matched_2d_cur_norm.size()); ++ii) {
+//                    cv::Scalar color(rng.uniform(0, 255), rng.uniform(0, 255), rng.uniform(0, 255));
+//                    matched_colors.push_back(color);
+//                }
 //                concatImageAndDraw(image_list[i], matched_2d_cur, imageQr, matched_2d_old, matched_colors, "matched_image", true);
 
                 FundmantalMatrixRANSAC(matched_2d_cur_norm, matched_2d_old_norm, status);
@@ -424,7 +359,7 @@ pair<int, double> ImageDatabase::query_list(int set_id, const std::vector<cv::Ma
     if(DEBUG_INFO_Q)    cout << "------------" << endl;
     for (int i = 0; i < 4; i++) {
         for (int j = 0; j < scene_num; j++) {
-            cout << count_result[i][j] << " ";
+            if(DEBUG_INFO_Q) cout << count_result[i][j] << " ";
             final_score[j] += weight[i]*count_result[i][j];
         }
         if(DEBUG_INFO_Q)        cout << endl;
@@ -435,11 +370,13 @@ pair<int, double> ImageDatabase::query_list(int set_id, const std::vector<cv::Ma
     }
     int max_score = final_score[max_id];
     sort(vote_array_total.begin(), vote_array_total.end());
-    cout << "vote_array_total sort: ";
-    for (int j = 0; j < scene_num; j++) {
-        cout << vote_array_total[j] << " ";
+    if(DEBUG_INFO_Q) {
+        cout << "vote_array_total sort: ";
+        for (int j = 0; j < scene_num; j++) {
+            cout << vote_array_total[j] << " ";
+        }
+        cout << endl;
     }
-    cout << endl;
     if(vote_array_total.size() == 2) {
         float score = vote_array_total[1] / (vote_array_total[1] + vote_array_total[0]);
         if(score < 0.7) return make_pair(-1, 0);
@@ -447,13 +384,10 @@ pair<int, double> ImageDatabase::query_list(int set_id, const std::vector<cv::Ma
     }
 
     float score = vote_array_total[scene_num - 1] / (vote_array_total[scene_num - 1] + vote_array_total[scene_num - 2]+ vote_array_total[scene_num - 3]);
-    cout << "score " << score << endl;
     if(score < 0.5) return make_pair(-1, 0);
     else return make_pair(max_id, score);
 
 
 }
 
-void ImageDatabase::saveImagePath(const int id, const vector<string> &imagesList) {
-    images_DBList.push_back(make_pair(id,imagesList));
-}
+

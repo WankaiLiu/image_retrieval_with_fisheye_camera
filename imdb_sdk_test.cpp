@@ -70,7 +70,7 @@ int main(int argc, char *argv[])
     const int IMG_HEIGHT = 400;
     string voc_path= "../config/loopC_vocdata.bin";
     string fileListsPath = "../config/datalist2.txt";
-    string testListsPath = "../config/datalist3.txt";
+    string testListsPath = "../config/datalist1.txt";
     std::string pattern_file = "../config/loopC_pattern.yml";
 #if 0
     pattern_file = "/home/what/disk/works/image_retrieval/loopC_pattern.yml";
@@ -87,11 +87,7 @@ int main(int argc, char *argv[])
     int counterDb = 0, counterQuery = 0;
 //    vector<BRIEF::bitset> brief_descriptors;
     for(auto i = 0; i < fileVec.size(); i++) {
-        //
-
-//        for(auto i = 0; i < 2; i++) {
-
-            string base_path = fileVec[i];
+        string base_path = fileVec[i];
         string image_path = base_path + "/cam0";
         string timeStamps = base_path + "/loop.txt";
         vector<string> imagesList;
@@ -99,9 +95,6 @@ int main(int argc, char *argv[])
             LoadImages(image_path, timeStamps, imagesList);
             std::cout << "The size of image list is " << imagesList.size() << " downsample to :" <<
                       imagesList.size() / addStep << endl;
-            #ifdef DEBUGD
-            saveImagePath(handler1, i,imagesList);
-            #endif
         }
         bool skip = false;
         try {
@@ -119,14 +112,7 @@ int main(int argc, char *argv[])
         catch (...)
         {}
         for (int ni = 0; ni < imagesList.size(); ni += addStep) {
-//            cv::Mat image = cv::imread(imagesList[ni], CV_LOAD_IMAGE_UNCHANGED);
-//            imdb.extractFeatureVector(image, brief_descriptors);
-//            imdb.addImage(image, i);
-              #ifdef DEBUGD
-              addImage(handler1,imagesList[ni], i, ni);
-              #else
               addImage(handler1,imagesList[ni],i);
-              #endif
         }
         counterDb += imagesList.size() / addStep;
     }
@@ -165,11 +151,7 @@ int main(int argc, char *argv[])
             }
             else
             {
-                #ifdef DEBUGD
-                query_result qr = query_list(handler1, i, image_data, IMG_WIDTH, IMG_HEIGHT, query_list_num);
-                #else
                 query_result qr = query_list(handler1, image_data, IMG_WIDTH, IMG_HEIGHT, query_list_num);
-                #endif
                 int id = qr.set_id;
                 double confidence = qr.confidence;
                 counter1[i]++;
