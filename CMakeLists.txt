@@ -35,3 +35,6 @@ target_link_libraries(imdb_sdk_test imdb_sdk_lib)
 #add_executable(imdb_sdk_test_server imdb_sdk_test_server.cpp)
 #target_link_libraries(imdb_sdk_test_server imdb_sdk_lib)
 
+add_executable(generate_bin generate_bin.cpp)
+target_link_libraries(generate_bin ${OpenCV_LIBS})
+
