@@ -327,7 +327,7 @@ using namespace cv;
 //  outer:            outer rectangle (no pixels lost)
 ///
 static void icvGetRectangles(const PinholeGeometry& camera_geometry,
-                             CvSize imgSize, cv::Rect_<float>& inner,
+                             cv::Size imgSize, cv::Rect_<float>& inner,
                              cv::Rect_<float>& outer) {
   const int N = 9;
   int x, y, k;
@@ -390,8 +390,8 @@ static void icvGetRectangles(const PinholeGeometry& camera_geometry,
 // RETURNS:           The output new camera matrix.
 ///
 Eigen::Matrix3d getOptimalNewCameraMatrix(
-    const PinholeGeometry& camera_geometry, CvSize imgSize, double alpha,
-    CvSize newImgSize) {
+    const PinholeGeometry& camera_geometry, cv::Size imgSize, double alpha,
+    cv::Size newImgSize) {
 
   cv::Rect_<float> inner, outer;
   newImgSize = newImgSize.width * newImgSize.height != 0 ? newImgSize : imgSize;

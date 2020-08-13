@@ -34,7 +34,7 @@ query_result query_list(void* handler, const char* pData, int nWidth, int nHeigh
         images.push_back(image);
     }
     pair<int, double> id_query = imdb->query_list(images);
-    qr.set_id = id_query.first;
+    qr.get_id = id_query.first;
     qr.confidence = id_query.second;
     return  qr;
 }

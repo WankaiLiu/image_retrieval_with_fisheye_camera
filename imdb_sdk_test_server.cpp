@@ -101,5 +101,5 @@ int main()
         myfile.read(pData, 512000);
         myfile.close();
         query_result qr = query_list(handler, pData, 640, 400, 2);
-        cout << "Success, query_result =  " << qr.set_id << "confidence = " << qr.confidence << endl;
+        cout << "Success, query_result =  " << qr.get_id << "confidence = " << qr.confidence << endl;
 }
