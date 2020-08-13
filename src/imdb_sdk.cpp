@@ -6,9 +6,9 @@
 #include "imdb_sdk.h"
 
 
-API_EXPORT void* initDataBase(string voc_path, std::string _pattern_file)
+API_EXPORT void* initDataBase(string voc_path, std::string pattern_file)
 {
-    ImageDatabase* imdb = new ImageDatabase(voc_path,  _pattern_file);
+    ImageDatabase* imdb = new ImageDatabase(voc_path,  pattern_file);
     imdb->scene_num = 1;
     return imdb;
 }
@@ -43,10 +43,12 @@ query_result query_list(void* handler, const char* pData, int nWidth, int nHeigh
 API_EXPORT bool erase(void* handler, int id) {
     ImageDatabase* imdb = (ImageDatabase*)handler;
     imdb->erase(id);
+    return true;
 }
 
 API_EXPORT bool releaseDataBase(void* handler){
     ImageDatabase* imdb = (ImageDatabase*)handler;
     delete(imdb);
+    return true;
 }
 
