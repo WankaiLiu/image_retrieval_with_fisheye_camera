@@ -61,16 +61,16 @@ void LoadPathList( const string &fileListsPath, vector<string> &fileVec)
 }
 
 
-int main()
+int main(int argc, char *argv[])
 {
     int addStep = 27;//135;//
-    int queryStep = 14;//down sample to 1fps
-    int query_list_num = 10;//collect images in 10s to upload and query
+    int queryStep = 15;//down sample FPS = 30/(queryStep+1) fps
+    int query_list_num = 10;//query period = query_list_num/FPS
     const int IMG_WIDTH = 640;
     const int IMG_HEIGHT = 400;
     string voc_path= "../config/loopC_vocdata.bin";
     string fileListsPath = "../config/datalist2.txt";
-    string testListsPath = "../config/datalist1.txt";
+    string testListsPath = "../config/datalist3.txt";
     std::string pattern_file = "../config/loopC_pattern.yml";
 #if 0
     pattern_file = "/home/what/disk/works/image_retrieval/loopC_pattern.yml";
@@ -93,12 +93,25 @@ int main()
         vector<string> imagesList;
         if (!image_path.empty()) {
             LoadImages(image_path, timeStamps, imagesList);
-            std::cout << "The size of image list is " << imagesList.size() << endl;
+            std::cout << "The size of image list is " << imagesList.size() << " downsample to :" <<
+                      imagesList.size() / addStep << endl;
         }
+        bool skip = false;
+        try {
+            if(argc >= 2 ) {
+                for(int j = 1; j < argc; j++) {
+                    if(i == stoi(argv[j])){
+                        cout << "skip set:" << fileVec[i] << endl;
+                        skip = true;
+                        break;
+                    }
+                }
+                if(skip) continue;
+            }
+        }
+        catch (...)
+        {}
         for (int ni = 0; ni < imagesList.size(); ni += addStep) {
-//            cv::Mat image = cv::imread(imagesList[ni], CV_LOAD_IMAGE_UNCHANGED);
-//            imdb.extractFeatureVector(image, brief_descriptors);
-//            imdb.addImage(image, i);
               addImage(handler1,imagesList[ni],i);
         }
         counterDb += imagesList.size() / addStep;
@@ -108,6 +121,8 @@ int main()
     LoadPathList(fileListsPathQuery, fileVec);
     vector<int> counter1,counter2,counter3;
     TicToc t_queryImage;
+//    char image_data[IMG_WIDTH*IMG_HEIGHT*query_list_num];
+    // char* image_data =(char *) malloc(IMG_WIDTH*IMG_HEIGHT*query_list_num);
     for(auto i = 0; i < fileVec.size(); i++) {
         counter1.push_back(0);
         counter2.push_back(0);
@@ -145,17 +160,33 @@ int main()
                 std::cout << "The setid and result is: " << i << " - " << id << "(" << confidence << ")\n" << endl;
                 add_cycle=0;
                 image_data_ptr = image_data;
+//                return 0;
             }
         }
         counterQuery += imagesList.size() / queryStep;
     }
+    // free(image_data);
     queryImageTimeCost = t_loadImage.toc();
+    try {
+        if (argc >= 2) {
+            for (int j = 1; j < argc; j++) {
+                int index = stoi(argv[j]);
+                std::cout << "---***set id: " << index << endl;
+                std::cout << "---***The match number is: " << counter2[index] << endl;
+                std::cout << "---***The failed number is: " << counter3[index] << endl;
+                std::cout << "---***The total number is: " << counter1[index] << endl;
+                std::cout << "---***Success rate is: " << 1.0f * counter2[index] / counter1[index] << endl << endl;
+            }
+        }
+    }
+    catch (...)
+    {}
     for(auto i = 0; i < fileVec.size(); i++) {
-        std::cout << "set id: " << i << endl;
-        std::cout << "The match number is: " << counter2[i] << endl;
-        std::cout << "The failed number is: " << counter3[i] << endl;
-        std::cout << "The total number is: " << counter1[i] << endl;
-        std::cout << "Success rate is: " << 1.0f * counter2[i] / counter1[i] << endl << endl;
+        std::cout << "***set id: " << i << endl;
+        std::cout << "***The match number is: " << counter2[i] << endl;
+        std::cout << "***The failed number is: " << counter3[i] << endl;
+        std::cout << "***The total number is: " << counter1[i] << endl;
+        std::cout << "***Success rate is: " << 1.0f * counter2[i] / counter1[i] << endl << endl;
     }
     std::cout << "loadImageTimeCost(s) is: " << loadImageTimeCost / 1000 << endl;
     std::cout << "queryImageTimeCost(s) is: " << queryImageTimeCost / 1000 << endl;

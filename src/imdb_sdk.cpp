@@ -9,23 +9,18 @@
 API_EXPORT void* initDataBase(string voc_path, std::string _pattern_file)
 {
     ImageDatabase* imdb = new ImageDatabase(voc_path,  _pattern_file);
-    imdb->scene_num = SCENE_NUM;
+    imdb->scene_num = 1;
     return imdb;
 }
 
-API_EXPORT bool addImage(void* handler, const string &img_path, int set_id){
+void addImage(void* handler, const string &img_path, int set_id){
     ImageDatabase* imdb = (ImageDatabase*)handler;
+    if(imdb->scene_num < set_id + 1) imdb->scene_num = set_id + 1;
     cv::Mat image = cv::imread(img_path, CV_LOAD_IMAGE_UNCHANGED);
     imdb->addImage(image, set_id);
 }
 
-API_EXPORT int query(void* handler, const string &img_path){
-    ImageDatabase* imdb = (ImageDatabase*)handler;
-    cv::Mat image = cv::imread(img_path, CV_LOAD_IMAGE_UNCHANGED);
-    return  imdb->query(image);
-}
-
-API_EXPORT query_result query_list(void* handler, const char* pData, int nWidth, int nHeight, int numFrame) {
+query_result query_list(void* handler, const char* pData, int nWidth, int nHeight, int numFrame) {
     query_result qr;
     ImageDatabase* imdb = (ImageDatabase*)handler;
     vector<cv::Mat> images;
@@ -43,6 +38,7 @@ API_EXPORT query_result query_list(void* handler, const char* pData, int nWidth,
     qr.confidence = id_query.second;
     return  qr;
 }
+
 
 API_EXPORT bool erase(void* handler, int id) {
     ImageDatabase* imdb = (ImageDatabase*)handler;
