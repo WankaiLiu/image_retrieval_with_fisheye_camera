@@ -92,23 +92,12 @@ void LoadPathList( const string &fileListsPath, vector<string> &fileVec)
 #define IMG_HEIGHT 400
 #define Q_LIST_NUM 10
 #define MAXPATH 1024
-//   ./imdb_sdk_test \
-//   -voc=/home/what/disk/works/image_retrieval/config/loopC_vocdata.bin \
-//   -ptn=/home/what/disk/works/image_retrieval/config/loopC_pattern.yml \
-//   -dbase=/home/what/disk/works/image_retrieval/config/dlist2.txt \
-//   -tlist=/home/what/disk/works/image_retrieval/build2/query_list.txt \
-//   -mode=1
 
+//    ./generate_bin -tlist=/home/what/disk/works/image_retrieval/config/dlist3.txt
 int main(int argc, char *argv[])
 {
-    string command = "rm list*.txt";
+    string command = "rm query_list.txt";
     FILE * ptr = NULL;
-    if (NULL == (ptr = popen(command.c_str(),"r")))
-    {
-        cout << "failed to clear old list*.txt\n";
-        return -1;
-    }
-    command = "rm query_list.txt";
     if (NULL == (ptr = popen(command.c_str(),"r")))
     {
         cout << "failed to clear old query_list.txt\n";
@@ -134,10 +123,7 @@ int main(int argc, char *argv[])
     if(path_to_config_tlist.empty())
     {
         cout << "Parameter is not enough!" << endl;
-        {
-    cout << "open file error" << endl;
-    return -1;
-}
+        return -1;
     }
     else
     {
@@ -184,41 +170,33 @@ int main(int argc, char *argv[])
         for (int ni = 0; ni < imagesList.size(); ni ++) {
                 cv::Mat image = cv::imread(imagesList[ni], CV_LOAD_IMAGE_UNCHANGED);
                 cv::Mat im_rsz = image.reshape(0,1);
-                if(add_cycle<Q_LIST_NUM)
-                {
+                if(add_cycle<Q_LIST_NUM) {
                     memcpy(image_data_ptr, im_rsz.data, img_size);
                     image_data_ptr += img_size;
                     add_cycle++;
-                }
-                else
-                {
+                } else {
                     char buf[1024];
                     sprintf(buf,"bindata/%d-%d.bin",qr_id,tmp);
                     string save_bin_path = (string)cur_path+"/"+(string)buf;
                     FILE* fp = fopen(save_bin_path.c_str(),"wb+");//binary
                     // cout << "GEN_IMG_BIN_DATA  " << buf<<endl;
-                    if(fp)
-                    {
+                    if(fp) {
                         fwrite(image_data,sizeof(char),IMG_WIDTH*IMG_HEIGHT*Q_LIST_NUM,fp);
                         fclose(fp);
                         fp = NULL;
-                    }
-                    else {
+                    } else {
                         cout << "create " << save_bin_path <<  " error" << endl;
                         return -1;
                     }
-                    sprintf(list_path,"list%d.txt",qr_id);
-                    // sprintf(buf,"bindata/%d-%d.bin\n",qr_id,tmp);
-                    save_bin_path += "\n";
-                    FILE* flist = fopen(list_path,"a+");//binary
-                    if(flist)
-                    {
-                        fwrite(save_bin_path.c_str(),sizeof(char),save_bin_path.size(),flist);
-                        fclose(flist);
-                        flist = NULL;
-                    }
-                    else {
-                        cout << "create " << list_path <<  " error" << endl;
+                    sprintf(buf,"bindata/%d-%d.bin %d\n",qr_id,tmp,qr_id);
+                    save_bin_path = (string)cur_path+"/"+(string)buf;//bin_path id
+                    FILE* fqlist = fopen("query_list.txt","a+");//binary
+                    if(fqlist) {
+                        fwrite(save_bin_path.c_str(),sizeof(char),string(save_bin_path).size(),fqlist);
+                        fclose(fqlist);
+                        fqlist = NULL;
+                    } else {
+                        cout << "create query_list.txt error" << endl;
                         return -1;
                     }
                     add_cycle=0;
@@ -228,18 +206,6 @@ int main(int argc, char *argv[])
                 }
         }
         counterQuery += imagesList.size() / queryStep;
-        sprintf(list_path,"list%d.txt %d\n",qr_id,qr_id);
-        FILE* fqlist = fopen("query_list.txt","a+");//binary
-        if(fqlist)
-        {
-            fwrite(list_path,sizeof(char),string(list_path).size(),fqlist);
-            fclose(fqlist);
-            fqlist = NULL;
-        }
-        else {
-            cout << "create query_list.txt error" << endl;
-            return -1;
-        }
     }
     // free(image_data);
     // queryImageTimeCost = t_loadImage.toc();

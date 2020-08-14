@@ -96,7 +96,6 @@ void LoadPathList( const string &fileListsPath, vector<string> &fileVec)
 //   -ptn=/home/what/disk/works/image_retrieval/config/loopC_pattern.yml \
 //   -dbase=/home/what/disk/works/image_retrieval/config/dlist2.txt \
 //   -tlist=/home/what/disk/works/image_retrieval/build2/query_list.txt \
-//   -mode=1
 
 int main(int argc, char *argv[])
 {
@@ -167,8 +166,8 @@ int main(int argc, char *argv[])
             try {
                 if(argc >= 6 && jump_cnt < argc) {
                     for(int j = 5; j < argc; j++) {
-                        if(set_id == stoi(argv[j])){ //跳过set_id
-                            cout << ">>>  skip set(id:"<< set_id << ")" << base_path << endl;
+                        if(set_id == stoi(argv[j])) { //跳过set_id
+                            cout << ">>>>> SKIP set(id:"<< set_id << ")  " << base_path << endl;
                             skip = true;
                             jump_cnt++;
                             break;
@@ -203,57 +202,46 @@ int main(int argc, char *argv[])
     file_id_list.clear();
     string path_to_config_dbaseQuery = path_to_config_tlist;
     LoadPathIdList(path_to_config_tlist, file_id_list);
-    vector<int> counter1,counter2,counter3;
+    unordered_map<int, int> counter1,counter2,counter3;
     TicToc t_queryImage;
     char image_list_bin[IMG_WIDTH*IMG_HEIGHT*Q_LIST_NUM];
     for(auto i = 0; i < file_id_list.size(); i++) {
-        counter1.push_back(0);
-        counter2.push_back(0);
-        counter3.push_back(0);
         string base_path = file_id_list[i].first;
         int qr_id = file_id_list[i].second;
-        // cout << base_path << qr_id << endl;
-        string image_path = base_path + "/cam0";
-        string timeStamps = base_path + "/loop.txt";
-        vector<string> imagesList;
-        if(!image_path.empty()) {
-            LoadPathList(base_path, imagesList);//query mode
-            std::cout << "The size of image list is " << imagesList.size() << endl;
-        }
-
         char image_data[IMG_WIDTH*IMG_HEIGHT*Q_LIST_NUM];
-        char * image_data_ptr = image_data;
-        int img_size = IMG_WIDTH*IMG_HEIGHT;
-        int add_cycle = 0,tmp=0;
-        for (int ni = 0; ni < imagesList.size(); ni ++) {
-            cout << "querying:  "<<imagesList[ni].c_str()<<endl;
-            FILE* fp = fopen(imagesList[ni].c_str(),"rb");
-            if(fp)
-            {
-                fread(image_list_bin,sizeof(char),IMG_WIDTH*IMG_HEIGHT*Q_LIST_NUM,fp);
-                fclose(fp);
-                fp = NULL;
-            }
-            else return -1;
-
-            TicToc tquery;
-            #ifdef DEBUGD
-            query_result qr = query_list(handler1, i, image_list_bin, IMG_WIDTH, IMG_HEIGHT, Q_LIST_NUM);
-            #else
-            query_result qr = query_list(handler1, image_list_bin, IMG_WIDTH, IMG_HEIGHT, Q_LIST_NUM);
-            #endif
-            int get_id = qr.get_id;
-            double confidence = qr.confidence;
-            counter1[i]++;
-            if(get_id == qr_id) counter2[i]++;
-            if(get_id == -1) counter3[i]++;
-            std::cout << "The setid and result is: " << qr_id << " - " << get_id << "(" << confidence << "),  cost time:" << tquery.toc() <<"ms\n" << endl;
+        int add_cycle = 0;
+        cout << "querying: " << base_path << endl;
+        
+        FILE* fp = fopen(base_path.c_str(),"rb");
+        if(fp)
+        {
+            fread(image_list_bin,sizeof(char),IMG_WIDTH*IMG_HEIGHT*Q_LIST_NUM,fp);
+            fclose(fp);
+            fp = NULL;
         }
-        counterQuery += imagesList.size() / queryStep;
+        else{
+            cout << "file " << base_path <<"does not exist\n";
+            return -1;
+        }
+
+        TicToc tquery;
+        #ifdef DEBUGD
+        query_result qr = query_list(handler1, i, image_list_bin, IMG_WIDTH, IMG_HEIGHT, Q_LIST_NUM);
+        #else
+        query_result qr = query_list(handler1, image_list_bin, IMG_WIDTH, IMG_HEIGHT, Q_LIST_NUM);
+        #endif
+        int get_id = qr.get_id;
+        double confidence = qr.confidence;
+        counter1[qr_id]++;//包含了所有的ID及其对应的总count
+        if(get_id == qr_id) counter2[qr_id]++;
+        if(get_id == -1) counter3[qr_id]++;
+        std::cout << "The setid and result is: " << qr_id << " - " << get_id << "(" << confidence << "),  cost time:" << tquery.toc() <<"ms\n" << endl;
+
+        counterQuery = file_id_list.size();
     }
     // free(image_data);
     queryImageTimeCost = t_loadImage.toc();
-    try {
+    /*try {
         if (argc >= 2) {
             for (int j = 1; j < argc; j++) {
                 int index = stoi(argv[j]);
@@ -266,13 +254,13 @@ int main(int argc, char *argv[])
         }
     }
     catch (...)
-    {}
-    for(auto i = 0; i < file_id_list.size(); i++) {
-        std::cout << "***set id: " << i << endl;
-        std::cout << "***The match number is: " << counter2[i] << endl;
-        std::cout << "***The failed number is: " << counter3[i] << endl;
-        std::cout << "***The total number is: " << counter1[i] << endl;
-        std::cout << "***Success rate is: " << 1.0f * counter2[i] / counter1[i] << endl << endl;
+    {}*/
+    for (auto &id : counter1){
+        std::cout << "***set id: " << id.first << endl;
+        std::cout << "***The match number is: " << counter2[id.first] << endl;
+        std::cout << "***The failed number is: " << counter3[id.first] << endl;
+        std::cout << "***The total number is: " << counter1[id.first] << endl;
+        std::cout << "***Success rate is: " << 1.0f * counter2[id.first] / id.second << endl << endl;
     }
     std::cout << "loadImageTimeCost(s) is: " << loadImageTimeCost / 1000 << endl;
     std::cout << "queryImageTimeCost(s) is: " << queryImageTimeCost / 1000 << endl;
