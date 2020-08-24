@@ -167,14 +167,16 @@ int main(int argc, char *argv[])
         int add_cycle = 0,tmp=0;
         char list_path[1024];
         cout << ",       converting image_set ID:"<< qr_id << " to binary files" <<endl;
-        for (int ni = 0; ni < imagesList.size(); ni ++) {
+        for (int ni = 0; ni < imagesList.size(); ni +=15) {
                 cv::Mat image = cv::imread(imagesList[ni], CV_LOAD_IMAGE_UNCHANGED);
                 cv::Mat im_rsz = image.reshape(0,1);
-                if(add_cycle<Q_LIST_NUM) {
+                // if(add_cycle<Q_LIST_NUM)
+                 {
                     memcpy(image_data_ptr, im_rsz.data, img_size);
                     image_data_ptr += img_size;
                     add_cycle++;
-                } else {
+                } 
+                if(add_cycle==Q_LIST_NUM){
                     char buf[1024];
                     sprintf(buf,"bindata/%d-%d.bin",qr_id,tmp);
                     string save_bin_path = (string)cur_path+"/"+(string)buf;
@@ -202,7 +204,6 @@ int main(int argc, char *argv[])
                     add_cycle=0;
                     image_data_ptr = image_data;
                     tmp++;
-                    ni += 13;
                 }
         }
         counterQuery += imagesList.size() / queryStep;
