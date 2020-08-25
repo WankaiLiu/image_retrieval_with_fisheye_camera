@@ -14,13 +14,22 @@ API_EXPORT void* initDataBase(string voc_path, std::string pattern_file)
 }
 
 void addImage(void* handler, const string &img_path, int set_id){
-    ImageDatabase* imdb = (ImageDatabase*)handler;
-    if(imdb->scene_num < set_id + 1) imdb->scene_num = set_id + 1;
-    cv::Mat image = cv::imread(img_path, CV_LOAD_IMAGE_UNCHANGED);
-    imdb->addImage(image, set_id);
+    try {
+        ImageDatabase* imdb = (ImageDatabase*)handler;
+        if(imdb->scene_num < set_id + 1) imdb->scene_num = set_id + 1;
+        cv::Mat image = cv::imread(img_path, CV_LOAD_IMAGE_UNCHANGED);
+        imdb->addImage(image, set_id);
+    }
+    catch(...)
+    {
+        cerr << "addImage Error!!!: Please check your file" << img_path << endl;
+    }
+
+
 }
 
 query_result query_list(void* handler, const char* pData, int nWidth, int nHeight, int numFrame) {
+    try {
     query_result qr;
     ImageDatabase* imdb = (ImageDatabase*)handler;
     vector<cv::Mat> images;
@@ -37,6 +46,12 @@ query_result query_list(void* handler, const char* pData, int nWidth, int nHeigh
     qr.get_id = id_query.first;
     qr.confidence = id_query.second;
     return  qr;
+    }
+    catch(...)
+    {
+        cerr << "Query Error!!!: Please check your query data" << endl;
+    }
+
 }
 
 

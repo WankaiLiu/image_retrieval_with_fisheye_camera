@@ -9,7 +9,7 @@
 
 #define DEBUG_INFO 0
 #define DEBUG 0
-#define DEBUG_INFO_Q 0
+#define DEBUG_INFO_Q 1
 
 
 struct db_info
