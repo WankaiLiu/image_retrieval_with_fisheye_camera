@@ -19,6 +19,9 @@ void addImage(void* handler, const string &img_path, int set_id){
         if(imdb->scene_num < set_id + 1) imdb->scene_num = set_id + 1;
         cv::Mat image = cv::imread(img_path, CV_LOAD_IMAGE_UNCHANGED);
         imdb->addImage(image, set_id);
+#if DEBUG_IMG
+        imdb->addImagePath(img_path);
+#endif
     }
     catch(...)
     {

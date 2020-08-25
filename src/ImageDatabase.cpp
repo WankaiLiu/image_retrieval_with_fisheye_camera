@@ -72,6 +72,9 @@ bool ImageDatabase::erase(int id) {
     DBoW2::EntryId entryId = id;
     db.delete_entry(entryId);
     imageset_id.erase(imageset_id.begin() + id);
+#if DEBUG_IMG
+    image_path_vec.erase(image_path_vec.begin() + id);
+#endif
     return true;
 };
 
@@ -173,7 +176,7 @@ void concatImageAndDraw(const cv::Mat& cur_image, vector<cv::Point2f>& matched_p
         {
             cv::line(image_out, matched_points_cur[i], old_pt, color, 1, 8, 0);
         }
-        if(DEBUG_INFO_Q) cout << endl;
+//        if(DEBUG_INFO_Q) cout << endl;
     }
     cv::imshow(path, image_out);
     cv::waitKey(190);
@@ -292,15 +295,19 @@ pair<int, double> ImageDatabase::query_list(const std::vector<cv::Mat>& image_li
                 reduceVector(matched_2d_old, status);
                 reduceVector(matched_2d_cur_norm, status);
                 reduceVector(matched_2d_old_norm, status);
-//                cv::Mat imageQr = cv::imread(images_DBList[dbInfo.id].second[dbInfo.index], CV_LOAD_IMAGE_UNCHANGED);
-//                vector<cv::Scalar> matched_colors;
-//                cv::RNG rng(time(0));
-//                for (int ii = 0; ii < static_cast<int>(matched_2d_cur_norm.size()); ++ii) {
-//                    cv::Scalar color(rng.uniform(0, 255), rng.uniform(0, 255), rng.uniform(0, 255));
-//                    matched_colors.push_back(color);
-//                }
-//                concatImageAndDraw(image_list[i], matched_2d_cur, imageQr, matched_2d_old, matched_colors, "matched_image", true);
+#if DEBUG_IMG
+                    cv::Mat imageQr = cv::imread(image_path_vec[ret[j].Id],
+                                                 CV_LOAD_IMAGE_UNCHANGED);
+                    vector<cv::Scalar> matched_colors;
+                    cv::RNG rng(time(0));
+                    for (int ii = 0; ii < static_cast<int>(matched_2d_cur_norm.size()); ++ii) {
+                        cv::Scalar color(rng.uniform(0, 255), rng.uniform(0, 255), rng.uniform(0, 255));
+                        matched_colors.push_back(color);
+                    }
+                    concatImageAndDraw(image_list[i], matched_2d_cur, imageQr, matched_2d_old, matched_colors,
+                                       "matched_image", true);
 
+#endif
                 FundmantalMatrixRANSAC(matched_2d_cur_norm, matched_2d_old_norm, status);
                 reduceVector(matched_2d_cur, status);
                 reduceVector(matched_2d_old, status);
@@ -309,6 +316,11 @@ pair<int, double> ImageDatabase::query_list(const std::vector<cv::Mat>& image_li
 //                concatImageAndDraw(image_list[i], matched_2d_cur, imageQr, matched_2d_old, matched_colors, "fundamental ransac", true);
                 vote_array_fun[i][imageset_id[ret[j].Id].id] += matched_2d_cur_norm.size();
                 vote_array_total[imageset_id[ret[j].Id].id] += matched_2d_cur_norm.size();
+#if DEBUG_IMG
+                concatImageAndDraw(image_list[i], matched_2d_cur, imageQr, matched_2d_old, matched_colors,
+                                   "fundransac_matched_image", true);
+
+#endif
             }
         }
     }
@@ -370,5 +382,9 @@ pair<int, double> ImageDatabase::query_list(const std::vector<cv::Mat>& image_li
     else return make_pair(max_id, score);
 
 }
-
+#if DEBUG_IMG
+void ImageDatabase::addImagePath(const string &img_path) {
+    image_path_vec.push_back(img_path);
+}
+#endif
 

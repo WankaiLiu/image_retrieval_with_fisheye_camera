@@ -10,6 +10,7 @@
 #define DEBUG_INFO 0
 #define DEBUG 0
 #define DEBUG_INFO_Q 1
+#define DEBUG_IMG 1
 
 
 struct db_info
@@ -29,11 +30,17 @@ public:
     void extractFeatureVector(const cv::Mat &src, vector<BRIEF::bitset> &brief_descriptors);
     int scene_num;
     BriefDatabase db;
+#if DEBUG_IMG
+    void addImagePath(const string &img_path);
+#endif
 
 private:
     int counter;
     // std::vector<std::pair<int,int>> imageset_id;
     std::vector<db_info> imageset_id;
+#if DEBUG_IMG
+    std::vector<string> image_path_vec;
+#endif
     std::string pattern_file;
     DBoW2::QueryResults ret;
     void blurImage4Brief(const cv::Mat &src, cv::Mat &dst);
