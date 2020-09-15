@@ -10,7 +10,7 @@
 #define DEBUG_INFO 0
 #define DEBUG 0
 #define DEBUG_INFO_Q 1
-#define DEBUG_IMG 1
+#define DEBUG_IMG 0
 
 
 struct db_info
@@ -27,6 +27,7 @@ public:
     void addImage(const cv::Mat &image, int set_id);
     pair<int, double> query_list(const std::vector<cv::Mat>& image_list);
     bool erase(int id);
+    bool erase_set(int set_id);
     void extractFeatureVector(const cv::Mat &src, vector<BRIEF::bitset> &brief_descriptors);
     int scene_num;
     BriefDatabase db;

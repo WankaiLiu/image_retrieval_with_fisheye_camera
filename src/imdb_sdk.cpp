@@ -60,8 +60,12 @@ query_result query_list(void* handler, const char* pData, int nWidth, int nHeigh
 
 API_EXPORT bool erase(void* handler, int id) {
     ImageDatabase* imdb = (ImageDatabase*)handler;
-    imdb->erase(id);
-    return true;
+    return imdb->erase(id);
+}
+
+API_EXPORT bool erase_set(void* handler, int set_id){
+    ImageDatabase* imdb = (ImageDatabase*)handler;
+    return imdb->erase_set(set_id);
 }
 
 API_EXPORT bool releaseDataBase(void* handler){

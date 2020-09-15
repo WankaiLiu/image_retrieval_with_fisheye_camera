@@ -86,6 +86,19 @@ API_EXPORT query_result query_list(void* handler, const char* pData, int nWidth,
 API_EXPORT bool erase(void* handler, int id);
 
 /***************************************************************
+@Function: erase_set
+@Description: Delete the images with input set_id in dataset.
+              This function deletes the image with set_id.
+              WARNING:Not Recommend use this function since it's time consuming if the database is large.
+
+@handler: The pointer of the database.
+@id: The index of the image set.
+
+@Return: True if success, false otherwise.
+****************************************************************/
+API_EXPORT bool erase_set(void* handler, int set_id);
+
+/***************************************************************
 @Function: releaseDataBase
 @Description: Release the database
               This function release the database with pointer.

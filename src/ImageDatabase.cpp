@@ -77,7 +77,17 @@ bool ImageDatabase::erase(int id) {
 #endif
     return true;
 };
-
+bool ImageDatabase::erase_set(int set_id){
+    bool find_set = false;
+    if(imageset_id.empty()) return false;
+    for(int i = imageset_id.size() - 1; i >= 0; i--) {
+        if(imageset_id[i].id == set_id) {
+            this->erase(i);
+            find_set = true;
+        }
+    }
+    return find_set;
+};
 int HammingDis(const BRIEF::bitset &a, const BRIEF::bitset &b)
 {
     int dis = 0;
