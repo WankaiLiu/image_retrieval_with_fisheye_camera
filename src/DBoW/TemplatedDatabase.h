@@ -528,6 +528,9 @@ void TemplatedDatabase<TDescriptor, F>::delete_entry(const EntryId entry_id)
   }
   m_dBowfile[entry_id].clear();
   m_dfile[entry_id].clear();
+  m_dBowfile.erase(m_dBowfile.begin() + entry_id);
+  m_dfile.erase(m_dfile.begin() + entry_id);
+  m_nentries--;
 }
 
 

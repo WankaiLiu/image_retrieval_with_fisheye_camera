@@ -30,6 +30,7 @@ public:
     bool erase_set(int set_id);
     void extractFeatureVector(const cv::Mat &src, vector<BRIEF::bitset> &brief_descriptors);
     int scene_num;
+    int get_dbsize();
     BriefDatabase db;
 #if DEBUG_IMG
     void addImagePath(const string &img_path);

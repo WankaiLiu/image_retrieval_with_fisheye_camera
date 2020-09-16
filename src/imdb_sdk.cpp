@@ -32,28 +32,40 @@ void addImage(void* handler, const string &img_path, int set_id){
 }
 
 query_result query_list(void* handler, const char* pData, int nWidth, int nHeight, int numFrame) {
-    try {
     query_result qr;
-    ImageDatabase* imdb = (ImageDatabase*)handler;
+    ImageDatabase *imdb = (ImageDatabase *) handler;
     vector<cv::Mat> images;
-    for(int i = 0; i < numFrame; i++) {
-        cv::Mat image = cv::Mat(nHeight, nWidth, CV_8UC1);
-        memcpy(image.data, pData + nWidth * nHeight * i, nWidth * nHeight);
-        if(DEBUG_INFO) {
-            cv::imshow("image", image);
-            cv::waitKey(5);
+    try {
+        for (int i = 0; i < numFrame; i++) {
+            cv::Mat image = cv::Mat(nHeight, nWidth, CV_8UC1);
+            memcpy(image.data, pData + nWidth * nHeight * i, nWidth * nHeight);
+            if (DEBUG_INFO) {
+                cv::imshow("image", image);
+                cv::waitKey(5);
+            }
+            images.push_back(image);
         }
-        images.push_back(image);
-    }
-    pair<int, double> id_query = imdb->query_list(images);
-    qr.get_id = id_query.first;
-    qr.confidence = id_query.second;
-    return  qr;
     }
     catch(...)
     {
-        cerr << "Query Error!!!: Please check your query data" << endl;
+        cerr << "Query Error in Parsing Image!!!: Please check your query data" << endl;
+        qr.get_id = -2;
+        return qr;
     }
+    try {
+        pair<int, double> id_query = imdb->query_list(images);
+        qr.get_id = id_query.first;
+        qr.confidence = id_query.second;
+        return  qr;
+    }
+    catch(...)
+    {
+        cerr << "Query Error in db_query!!!: Please check your database. Current db_size = " << endl;
+        cerr << "Query Error Info: imageset.size = " <<  imdb->get_dbsize() << endl;
+        qr.get_id = -2;
+        return qr;
+    }
+
 
 }
 

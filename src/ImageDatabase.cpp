@@ -77,6 +77,9 @@ bool ImageDatabase::erase(int id) {
 #endif
     return true;
 };
+int ImageDatabase::get_dbsize() {
+    return imageset_id.size();
+}
 bool ImageDatabase::erase_set(int set_id){
     bool find_set = false;
     if(imageset_id.empty()) return false;
