@@ -327,6 +327,7 @@ pair<int, double> ImageDatabase::query_list(const std::vector<cv::Mat>& image_li
                 reduceVector(matched_2d_cur_norm, status);
                 reduceVector(matched_2d_old_norm, status);
 //                concatImageAndDraw(image_list[i], matched_2d_cur, imageQr, matched_2d_old, matched_colors, "fundamental ransac", true);
+                if(matched_2d_cur_norm.size() < 40) continue;
                 vote_array_fun[i][imageset_id[ret[j].Id].id] += matched_2d_cur_norm.size();
                 vote_array_total[imageset_id[ret[j].Id].id] += matched_2d_cur_norm.size();
 #if DEBUG_IMG
@@ -384,14 +385,14 @@ pair<int, double> ImageDatabase::query_list(const std::vector<cv::Mat>& image_li
         }
         cout << endl;
     }
-    if(vote_array_total.size() == 2) {
-        float score = vote_array_total[1] / (vote_array_total[1] + vote_array_total[0]);
-        if(score < 0.7) return make_pair(-1, 0);
+    if(vote_array_total.size() == 1) {
+        float score = vote_array_total[1] / 500;
+        if(score < 0.1) return make_pair(-1, 0);
         else return make_pair(max_id,score);
     }
 
-    float score = vote_array_total[scene_num - 1] / (vote_array_total[scene_num - 1] + vote_array_total[scene_num - 2]+ vote_array_total[scene_num - 3]);
-    if(score < 0.5) return make_pair(-1, 0);
+    float score = (vote_array_total[scene_num - 1] - vote_array_total[scene_num - 2]) / 500;
+    if(score < 0.1) return make_pair(-1, 0);
     else return make_pair(max_id, score);
 
 }

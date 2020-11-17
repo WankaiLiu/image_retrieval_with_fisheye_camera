@@ -4,12 +4,13 @@
 
 #include "ImageDatabase.h"
 #include "imdb_sdk.h"
-
+#define VERTION_DATE 20201112
 
 API_EXPORT void* initDataBase(string voc_path, std::string pattern_file)
 {
     ImageDatabase* imdb = new ImageDatabase(voc_path,  pattern_file);
     imdb->scene_num = 1;
+    cout << "InitDataBase...**** version date :" << VERTION_DATE << endl;
     return imdb;
 }
 
