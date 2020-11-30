@@ -10,7 +10,7 @@
 
 ImageDatabase::ImageDatabase(string voc_path, std::string _pattern_file){
     BriefVocabulary* voc = new BriefVocabulary(voc_path);
-    this->db.setVocabulary(*voc, true, 0);
+    this->db.setVocabulary(*voc, false, 0);
     pattern_file = _pattern_file;
     delete voc;
     counter = 0;
@@ -209,10 +209,20 @@ void FundmantalMatrixRANSAC(const std::vector<cv::Point2f> &matched_2d_cur_norm,
         cv::findFundamentalMat(matched_2d_cur_norm, matched_2d_old_norm, cv::FM_RANSAC, 2.0 / 290, 0.9, status);
     }
 }
-pair<int, double> ImageDatabase::query_list(const std::vector<cv::Mat>& image_list){//根据这一个list中的图片直接在当次判断出当前场景ID
-    if(scene_num < 2) {
+
+//Rescale the score into [0 , 1]
+double RescaleScore(const double score) {
+    if(score < 0.5) { return score;}
+    else if(score < 1) {return 0.5 + (score - 0.5)*0.5;}
+    else if(score < 3.5) {return 0.75 + (score - 1)*0.1;}
+    else {return 1;}
+}
+
+std::vector<pair<int, double>> ImageDatabase::query_list(const std::vector<cv::Mat>& image_list){//根据这一个list中的图片直接在当次判断出当前场景ID
+    std::vector<pair<int, double>> ret_vec;
+    if(scene_num < 1) {
         cerr << "Please make sure the number of scen is larger than 2" << endl;
-        return make_pair(-1, -1);
+        return ret_vec;
     }
     int list_size=image_list.size();
     int high_rate_cnt=0;
@@ -327,7 +337,7 @@ pair<int, double> ImageDatabase::query_list(const std::vector<cv::Mat>& image_li
                 reduceVector(matched_2d_cur_norm, status);
                 reduceVector(matched_2d_old_norm, status);
 //                concatImageAndDraw(image_list[i], matched_2d_cur, imageQr, matched_2d_old, matched_colors, "fundamental ransac", true);
-                if(matched_2d_cur_norm.size() < 40) continue;
+                if(matched_2d_cur_norm.size() < MIN_FUNDAMENTAL_THRESHOLD) continue;
                 vote_array_fun[i][imageset_id[ret[j].Id].id] += matched_2d_cur_norm.size();
                 vote_array_total[imageset_id[ret[j].Id].id] += matched_2d_cur_norm.size();
 #if DEBUG_IMG
@@ -353,47 +363,25 @@ pair<int, double> ImageDatabase::query_list(const std::vector<cv::Mat>& image_li
         }
         cout << endl;
     }
-    for (int i = 0; i < list_size; i++) {
-        for (int j = 0; j < scene_num; j++) {
-            if (vote_array_fun[i][j] >= 200) count_result[0][j]++;
-            else if (vote_array_fun[i][j] >= 100) count_result[1][j]++;
-            else if (vote_array_fun[i][j] >= 50) count_result[2][j]++;
-            else if (vote_array_fun[i][j] >= 30) count_result[3][j]++;
-        }
-    }
 //    bool notFound = true;
-    vector<float> final_score(scene_num,0);
-    int weight[] = {8,4,2,1};
-    if(DEBUG_INFO_Q)    cout << "------------" << endl;
-    for (int i = 0; i < 4; i++) {
-        for (int j = 0; j < scene_num; j++) {
-            if(DEBUG_INFO_Q) cout << count_result[i][j] << " ";
-            final_score[j] += weight[i]*count_result[i][j];
-        }
-        if(DEBUG_INFO_Q)        cout << endl;
+    double score;
+    for(int i = 1; i < vote_array_total.size(); i++) {
+        score = vote_array_total[i] / (image_list.size() * MIN_FUNDAMENTAL_THRESHOLD);
+        if(score > MIN_SCORE) ret_vec.push_back(make_pair(i, RescaleScore(score)));
     }
-    int max_id = 0;
-    for(int i = 1; i < final_score.size(); i++) {
-        if(final_score[i] > final_score[max_id]) max_id = i;
-    }
-    int max_score = final_score[max_id];
-    sort(vote_array_total.begin(), vote_array_total.end());
+    sort(ret_vec.begin(), ret_vec.end(),
+            [](const pair<int, double> &a,const pair<int, double> &b) -> bool{
+        return (a.second > b.second);
+    });
     if(DEBUG_INFO_Q) {
-        cout << "vote_array_total sort: ";
-        for (int j = 0; j < scene_num; j++) {
-            cout << vote_array_total[j] << " ";
+        cout << "ret_vec sort: ";
+        for (int j = 0; j < ret_vec.size(); j++) {
+            cout << ret_vec[j].first << "-" << ret_vec[j].second << " ";
         }
         cout << endl;
     }
-    if(vote_array_total.size() == 1) {
-        float score = vote_array_total[1] / 500;
-        if(score < 0.1) return make_pair(-1, 0);
-        else return make_pair(max_id,score);
-    }
-
-    float score = (vote_array_total[scene_num - 1] - vote_array_total[scene_num - 2]) / 500;
-    if(score < 0.1) return make_pair(-1, 0);
-    else return make_pair(max_id, score);
+    ret_vec.resize(3);
+    return ret_vec;
 
 }
 #if DEBUG_IMG

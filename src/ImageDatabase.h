@@ -11,6 +11,8 @@
 #define DEBUG 0
 #define DEBUG_INFO_Q 1
 #define DEBUG_IMG 0
+#define MIN_SCORE 0.2
+#define MIN_FUNDAMENTAL_THRESHOLD 40.f
 
 
 struct db_info
@@ -25,7 +27,7 @@ class ImageDatabase {
 public:
     ImageDatabase(string voc_path, std::string _pattern_file);
     void addImage(const cv::Mat &image, int set_id);
-    pair<int, double> query_list(const std::vector<cv::Mat>& image_list);
+    std::vector<pair<int, double>> query_list(const std::vector<cv::Mat>& image_list);
     bool erase(int id);
     bool erase_set(int set_id);
     void extractFeatureVector(const cv::Mat &src, vector<BRIEF::bitset> &brief_descriptors);
