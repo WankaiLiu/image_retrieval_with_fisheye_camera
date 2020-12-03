@@ -56,7 +56,7 @@ API_EXPORT void* initDataBase(std::string voc_path, std::string pattern_file);
 
 @Return: null
 ****************************************************************/
-API_EXPORT void addImage(void* handler, const std::string &img_path, int set_id);
+API_EXPORT void addImage(void* handler, const std::string &img_path, int set_id, const std::string &camera_file_path);
 
 /***************************************************************
 @Function: query_list
@@ -72,6 +72,21 @@ API_EXPORT void addImage(void* handler, const std::string &img_path, int set_id)
 @Return: The result contains the set id and the score of confidence.
 ****************************************************************/
 API_EXPORT query_result query_list(void* handler, const char* pData, int nWidth, int nHeight, int numFrame);
+
+/***************************************************************
+@Function: query_list_vec
+@Description: Query the set id with data stream
+              This function gets the the pointer of data stream with size. It will return the query result
+
+@handler: The pointer of the database.
+@img_path_vec: The vector of image file's path.
+@camera_file_path: The path of camera's calibration file.
+
+
+@Return: The result contains the vector including the set id and the score of confidence.
+****************************************************************/
+API_EXPORT std::vector<query_result> query_list_vec(void* handler, const std::vector<std::string> &img_path_vec,
+        const std::string &camera_file_path);
 
 /***************************************************************
 @Function: erase

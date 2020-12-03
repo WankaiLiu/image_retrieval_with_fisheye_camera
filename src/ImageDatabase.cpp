@@ -219,6 +219,7 @@ double RescaleScore(const double score) {
 }
 
 std::vector<pair<int, double>> ImageDatabase::query_list(const std::vector<cv::Mat>& image_list){//根据这一个list中的图片直接在当次判断出当前场景ID
+    cout << "start  ImageDatabase::query_list: Mat Size = "  << image_list.size() << endl;
     std::vector<pair<int, double>> ret_vec;
     if(scene_num < 1) {
         cerr << "Please make sure the number of scen is larger than 2" << endl;
@@ -380,7 +381,7 @@ std::vector<pair<int, double>> ImageDatabase::query_list(const std::vector<cv::M
         }
         cout << endl;
     }
-    ret_vec.resize(3);
+    if(ret_vec.size() > 3) ret_vec.resize(3);
     return ret_vec;
 
 }
