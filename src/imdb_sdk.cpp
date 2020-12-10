@@ -4,18 +4,26 @@
 
 #include "ImageDatabase.h"
 #include "imdb_sdk.h"
-#define VERTION_DATE 20201117
+#include "tic_toc.h"
+#define VERTION_DATE 20201209
 
 API_EXPORT void* initDataBase(string voc_path, std::string pattern_file)
 {
     ImageDatabase* imdb = new ImageDatabase(voc_path,  pattern_file);
-    imdb->scene_num = 1;
-    cout << "InitDataBase...**** version date :" << VERTION_DATE << endl;
+    cout << "InitDataBase...**** version date :" << VERTION_DATE << ", size of handler: " << sizeof(*imdb) <<
+    "address: " << imdb << endl;
     return imdb;
 }
 
 void addImage(void* handler, const string &img_path, int set_id, const std::string &camera_file_path){
     try {
+        TicToc timer;
+        cout << "addImage, handler:" << handler << ", set_id: " << set_id <<
+        ", image_path: " <<  img_path << endl;
+        if(set_id < 0) {
+            cerr << "addImage Error!!!: Please make sure set_id is not NEGATIVE" << endl;
+
+        }
         ifstream myfile(camera_file_path);
         if(myfile.is_open())  {
             string line;
@@ -30,6 +38,8 @@ void addImage(void* handler, const string &img_path, int set_id, const std::stri
 #if DEBUG_IMG
         imdb->addImagePath(img_path);
 #endif
+        cout << "Time cost of adding image: " << timer.toc() << " ms. " << endl;
+        return;
     }
     catch(...)
     {
@@ -41,11 +51,17 @@ void addImage(void* handler, const string &img_path, int set_id, const std::stri
 
 std::vector<query_result> query_list_vec(void* handler, const std::vector<std::string> &img_path_vec,
         const std::string &camera_file_path){
+    TicToc timer;
     vector<query_result>  qr_vec;
     ImageDatabase *imdb = (ImageDatabase *) handler;
     vector<cv::Mat> images;
     cout << "start query...**** version date :" << VERTION_DATE << endl;
     try {
+        if(img_path_vec.empty()) {
+            cerr << "Query Error in Parsing Image!!! The image path's vector is empty" << endl;
+            return qr_vec;
+        }
+        cout << "query_list_vec, handler: " << handler << endl;
         ifstream myfile(camera_file_path);
         if(myfile.is_open())  {
             string line;
@@ -73,6 +89,7 @@ std::vector<query_result> query_list_vec(void* handler, const std::vector<std::s
             qr.confidence = id_query_list[j].second;
             qr_vec.push_back(qr);
         }
+        cout << "Time cost of querying image list: " << timer.toc() << " ms. " << endl;
         return  qr_vec;
     }
     catch(...)
@@ -131,12 +148,16 @@ query_result query_list(void* handler, const char* pData, int nWidth, int nHeigh
 
 API_EXPORT bool erase(void* handler, int id) {
     ImageDatabase* imdb = (ImageDatabase*)handler;
+    cout << "erase set, handler:" << handler << ", set_id: " << id << endl;
     return imdb->erase(id);
 }
 
 API_EXPORT bool erase_set(void* handler, int set_id){
+    TicToc timer;
     ImageDatabase* imdb = (ImageDatabase*)handler;
-    return imdb->erase_set(set_id);
+    bool ret = imdb->erase_set(set_id);
+    cout << "Time cost of erase set_id: " << set_id << " ; Time cost: "<< timer.toc() << " ms. " << endl;
+    return ret;
 }
 
 API_EXPORT bool releaseDataBase(void* handler){

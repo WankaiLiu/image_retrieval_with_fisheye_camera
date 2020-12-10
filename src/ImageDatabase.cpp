@@ -5,15 +5,18 @@
 #include "ImageDatabase.h"
 #include "undistorter.h"
 #include <unordered_set>
+#include "tic_toc.h"
+#include <thread>
 
 #include <opencv2/features2d/features2d.hpp>
 
 ImageDatabase::ImageDatabase(string voc_path, std::string _pattern_file){
     BriefVocabulary* voc = new BriefVocabulary(voc_path);
-    this->db.setVocabulary(*voc, false, 0);
+    this->db.setVocabulary(*voc, true, 0);
     pattern_file = _pattern_file;
     delete voc;
     counter = 0;
+    scene_num = 1;
 }
 
 void ImageDatabase::blurImage4Brief(const cv::Mat &src, cv::Mat &dst){
@@ -353,21 +356,23 @@ std::vector<pair<int, double>> ImageDatabase::query_list(const std::vector<cv::M
         for (int i = 0; i < list_size; i++) {
             cout << "vote_array_fun  ";
             for (int j = 0; j < scene_num; j++) {
-                cout << vote_array_fun[i][j] << " ";
+                if(vote_array_fun[i][j] == 0) continue;
+                cout << j << "-" << vote_array_fun[i][j] << " , ";
             }
             cout << endl;
         }
         cout << "vote_array_total ";
 
         for (int j = 0; j < scene_num; j++) {
-            cout << vote_array_total[j] << " ";
+            if(vote_array_total[j] == 0) continue;
+            cout << j << "-" <<  vote_array_total[j] << " , ";
         }
         cout << endl;
     }
 //    bool notFound = true;
     double score;
-    for(int i = 1; i < vote_array_total.size(); i++) {
-        score = vote_array_total[i] / (image_list.size() * MIN_FUNDAMENTAL_THRESHOLD);
+    for(int i = 0; i < vote_array_total.size(); i++) {
+        score = vote_array_total[i] / (image_list.size() * MIN_FUNDAMENTAL_THRESHOLD * 3);
         if(score > MIN_SCORE) ret_vec.push_back(make_pair(i, RescaleScore(score)));
     }
     sort(ret_vec.begin(), ret_vec.end(),
