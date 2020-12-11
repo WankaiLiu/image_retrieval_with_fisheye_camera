@@ -5,7 +5,7 @@
 #include "ImageDatabase.h"
 #include "imdb_sdk.h"
 #include "tic_toc.h"
-#define VERTION_DATE 20201209
+#define VERTION_DATE 20201210
 
 API_EXPORT void* initDataBase(string voc_path, std::string pattern_file)
 {
@@ -82,7 +82,7 @@ std::vector<query_result> query_list_vec(void* handler, const std::vector<std::s
         return qr_vec;
     }
     try {
-        std::vector<pair<int, double>> id_query_list = imdb->query_list(images);
+        std::vector<pair<int, double>> id_query_list = imdb->query_list_multithread(images);
         for(size_t j = 0; j < id_query_list.size(); j++) {
             query_result qr;
             qr.get_id = id_query_list[j].first;
