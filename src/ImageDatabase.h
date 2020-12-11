@@ -28,6 +28,7 @@ public:
     ImageDatabase(string voc_path, std::string _pattern_file);
     void addImage(const cv::Mat &image, int set_id);
     std::vector<pair<int, double>> query_list(const std::vector<cv::Mat>& image_list);
+    std::vector<pair<int, double>> query_list_multithread(const std::vector<cv::Mat>& image_list);
     bool erase(int id);
     bool erase_set(int set_id);
     void extractFeatureVector(const cv::Mat &src, vector<BRIEF::bitset> &brief_descriptors);
@@ -50,6 +51,7 @@ private:
     void blurImage4Brief(const cv::Mat &src, cv::Mat &dst);
     void computeBRIEFPoint(const cv::Mat &image, cv::Mat &image_blur,vector<cv::KeyPoint> &keypoints,
                            vector<BRIEF::bitset> &brief_descriptors);
+    void thread_query(const cv::Mat &img,const void *camera_ptr, int vote_array_fun_i[], vector<float> &vote_array_total);
 
 };
 

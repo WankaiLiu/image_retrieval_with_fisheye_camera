@@ -220,6 +220,192 @@ double RescaleScore(const double score) {
     else if(score < 3.5) {return 0.75 + (score - 1)*0.1;}
     else {return 1;}
 }
+mutex mtx_db,mtx_array;
+void ImageDatabase::thread_query(const cv::Mat &img, const void *camera_ptr, int vote_array_fun_i[], vector<float> &vote_array_total) {
+    cv::Mat image_blur;
+    blurImage4Brief(img, image_blur);
+    vector<cv::KeyPoint> keypoints_query;
+    vector<BRIEF::bitset> brief_descriptors_query;
+    computeBRIEFPoint(image_blur, image_blur, keypoints_query, brief_descriptors_query);
+    mtx_db.lock();
+    db.query(brief_descriptors_query, ret, 4, imageset_id.size());
+    mtx_db.unlock();
+    vector<pair<pair<int, int>, double>> ret4;
+    //wankai:test by Fundamental Ransac
+    vector<uchar> status;
+    vector<cv::Point2f> matched_2d_cur, matched_2d_cur_base, matched_2d_old;
+    vector<cv::Point2f> matched_2d_cur_norm, matched_2d_cur_norm_base, matched_2d_old_norm;
+    std::vector<cv::KeyPoint> keypoints_query_norm;
+    undistorter::PinholeGeometry *camera = (undistorter::PinholeGeometry *) camera_ptr;
+    double alpha = 1.0, //alphe=0.0: all pixels valid, alpha=1.0: no pixels lost
+            scale = 2.0;
+    int interpolation = cv::INTER_LINEAR;
+    undistorter::PinholeUndistorter undistorter(*camera, alpha, scale, interpolation);
+    Eigen::Matrix3d cameraMatrix = camera->getCameraMatrix();
+    double cu = cameraMatrix(0, 2), cv = cameraMatrix(1, 2);
+    double fu = cameraMatrix(0, 0), fv = cameraMatrix(1, 1);
+
+    for (size_t kpt_id = 0; kpt_id < keypoints_query.size(); kpt_id++) {
+        cv::Point2f pt2f(keypoints_query[kpt_id].pt.x, keypoints_query[kpt_id].pt.y);
+        matched_2d_cur_base.push_back(pt2f);
+        Eigen::Vector2d point(keypoints_query[kpt_id].pt.x, keypoints_query[kpt_id].pt.y);
+        point(0) = (point(0) - cu) / fu;
+        point(1) = (point(1) - cv) / fv;
+        camera->distortion->undistort(point);
+        cv::KeyPoint pts = keypoints_query[kpt_id];
+        pts.pt.x = point(0);
+        pts.pt.y = point(1);
+        cv::Point2f pt2f_norm(point(0), point(1));
+        matched_2d_cur_norm_base.push_back(pt2f_norm);
+    }
+    if (ret.size() >= 1) {
+        for (int j = 0; j < ret.size(); j++) {
+            db_info dbInfo = imageset_id[ret[j].Id];
+            Eigen::Matrix3d cameraMatrix = camera->getCameraMatrix();
+            std::vector<cv::KeyPoint> keypoints_db;
+            std::vector<cv::KeyPoint> keypoints_db_norm;
+            keypoints_db.clear();
+            keypoints_db_norm.clear();
+            matched_2d_old.clear();
+            matched_2d_old_norm.clear();
+            matched_2d_cur = matched_2d_cur_base;
+            matched_2d_cur_norm = matched_2d_cur_norm_base;
+            for (size_t kpt_id = 0; kpt_id < dbInfo.kps.size(); kpt_id++) {
+                Eigen::Vector2d point(dbInfo.kps[kpt_id].pt.x, dbInfo.kps[kpt_id].pt.y);
+                point(0) = (point(0) - cu) / fu;
+                point(1) = (point(1) - cv) / fv;
+                camera->distortion->undistort(point);
+                cv::KeyPoint pts = dbInfo.kps[kpt_id];
+                keypoints_db.push_back(pts);
+                pts.pt.x = point(0);
+                pts.pt.y = point(1);
+                keypoints_db_norm.push_back(pts);
+            }
+            searchByBRIEFDes(matched_2d_old, matched_2d_old_norm, status, dbInfo.brf_desc,
+                             brief_descriptors_query, keypoints_db, keypoints_db_norm);
+            reduceVector(matched_2d_cur, status);
+            reduceVector(matched_2d_old, status);
+            reduceVector(matched_2d_cur_norm, status);
+            reduceVector(matched_2d_old_norm, status);
+#if DEBUG_IMG
+            cv::Mat imageQr = cv::imread(image_path_vec[ret[j].Id],
+                                                 CV_LOAD_IMAGE_UNCHANGED);
+                    vector<cv::Scalar> matched_colors;
+                    cv::RNG rng(time(0));
+                    for (int ii = 0; ii < static_cast<int>(matched_2d_cur_norm.size()); ++ii) {
+                        cv::Scalar color(rng.uniform(0, 255), rng.uniform(0, 255), rng.uniform(0, 255));
+                        matched_colors.push_back(color);
+                    }
+                    concatImageAndDraw(image_list[i], matched_2d_cur, imageQr, matched_2d_old, matched_colors,
+                                       "matched_image", true);
+
+#endif
+            FundmantalMatrixRANSAC(matched_2d_cur_norm, matched_2d_old_norm, status);
+            reduceVector(matched_2d_cur, status);
+            reduceVector(matched_2d_old, status);
+            reduceVector(matched_2d_cur_norm, status);
+            reduceVector(matched_2d_old_norm, status);
+//                concatImageAndDraw(image_list[i], matched_2d_cur, imageQr, matched_2d_old, matched_colors, "fundamental ransac", true);
+            if(matched_2d_cur_norm.size() < MIN_FUNDAMENTAL_THRESHOLD) continue;
+            mtx_array.lock();
+            vote_array_fun_i[imageset_id[ret[j].Id].id] += matched_2d_cur_norm.size();
+            vote_array_total[imageset_id[ret[j].Id].id] += matched_2d_cur_norm.size();
+            mtx_array.unlock();
+#if DEBUG_IMG
+            concatImageAndDraw(image_list[i], matched_2d_cur, imageQr, matched_2d_old, matched_colors,
+                                   "fundransac_matched_image", true);
+
+#endif
+        }
+
+    }
+}
+std::vector<pair<int, double>> ImageDatabase::query_list_multithread(const std::vector<cv::Mat>& image_list){
+    cout << "start  ImageDatabase::query_list_multithread: Mat Size = "  << image_list.size() << endl;
+    std::vector<pair<int, double>> ret_vec;
+    if(scene_num < 1) {
+        cerr << "Please make sure the number of scen is larger than 2" << endl;
+        return ret_vec;
+    }
+    int list_size=image_list.size();
+    int high_rate_cnt=0;
+    std::map<int,unordered_set<int>> result; //set_id, image_id
+    int vote_array[list_size][scene_num];
+    int vote_array_fun[list_size][scene_num];
+    vector<float> vote_array_total(scene_num,0);
+    int count_result[4][scene_num];
+    int count_result_fun[4][scene_num];
+    for (int i = 0; i < list_size; i++) {
+        for (int j = 0; j < scene_num; j++) {
+            vote_array[i][j] = 0;
+            vote_array_fun[i][j] = 0;
+            vote_array_total[j] = 0;
+        }
+    }
+    for (int i = 0; i < 4; i++) {
+        for (int j = 0; j < scene_num; j++) {
+            count_result[i][j] = 0;
+            count_result_fun[i][j] = 0;
+        }
+    }
+    //Fundamental Ransac to filter outliers
+    vector<vector<cv::KeyPoint>> kps_list_query;
+    vector<vector<BRIEF::bitset>> brf_list_query;
+    Eigen::Vector2d focalLength(290.03672785595984, 289.70361075706387);
+    Eigen::Vector2d principalPoint(323.1621621450474, 197.5696586534049);
+    Eigen::Vector2i resolution(image_list[0].cols, image_list[0].rows);
+    Eigen::Vector4d distCoeffs_RadTan(-0.01847757657533866, 0.0575172937703169, -0.06496298696673658, 0.02593645307703224);
+    undistorter::PinholeGeometry camera(focalLength, principalPoint, resolution, undistorter::EquidistantDistortion::create(distCoeffs_RadTan));
+
+    vector<thread> threads;
+    for (size_t i = 0; i < list_size; i++) {//query
+        int a[20][5];
+        int b[20];
+        threads.push_back(thread(&ImageDatabase::thread_query, this, image_list[i], &camera, (int *)(vote_array_fun[i]), ref(vote_array_total)));
+//        threads.push_back(thread(&ImageDatabase::thread_query, this, image_list[i], &camera, (int *)(vote_array_fun[i]), vote_array_total));
+    }
+    for (size_t i = 0; i < threads.size(); i++) {//query
+        threads[i].join();
+    }
+
+    if(DEBUG_INFO_Q) {
+        for (int i = 0; i < list_size; i++) {
+            cout << "vote_array_fun  ";
+            for (int j = 0; j < scene_num; j++) {
+                if(vote_array_fun[i][j] == 0) continue;
+                cout << j << "-" << vote_array_fun[i][j] << " , ";
+            }
+            cout << endl;
+        }
+        cout << "vote_array_total ";
+
+        for (int j = 0; j < scene_num; j++) {
+            if(vote_array_total[j] == 0) continue;
+            cout << j << "-" <<  vote_array_total[j] << " , ";
+        }
+        cout << endl;
+    }
+//    bool notFound = true;
+    double score;
+    for(int i = 0; i < vote_array_total.size(); i++) {
+        score = vote_array_total[i] / (image_list.size() * MIN_FUNDAMENTAL_THRESHOLD * 3);
+        if(score > MIN_SCORE) ret_vec.push_back(make_pair(i, RescaleScore(score)));
+    }
+    sort(ret_vec.begin(), ret_vec.end(),
+         [](const pair<int, double> &a,const pair<int, double> &b) -> bool{
+             return (a.second > b.second);
+         });
+    if(DEBUG_INFO_Q) {
+        cout << "ret_vec sort: ";
+        for (int j = 0; j < ret_vec.size(); j++) {
+            cout << ret_vec[j].first << "-" << ret_vec[j].second << " ";
+        }
+        cout << endl;
+    }
+    if(ret_vec.size() > 3) ret_vec.resize(3);
+
+    return ret_vec;
+}
 
 std::vector<pair<int, double>> ImageDatabase::query_list(const std::vector<cv::Mat>& image_list){//根据这一个list中的图片直接在当次判断出当前场景ID
     cout << "start  ImageDatabase::query_list: Mat Size = "  << image_list.size() << endl;
