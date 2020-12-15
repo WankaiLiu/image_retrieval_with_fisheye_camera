@@ -1,6 +1,3 @@
-/home/wankai/data/slam/image_retrieval/data_2/slamdata801 7
-/home/wankai/data/slam/image_retrieval/data_2/slamdata803 8
-/home/wankai/data/slam/image_retrieval/data_2/slamdata805 9
 /home/wankai/data/slam/image_retrieval/data_2/slamdata807 0
 /home/wankai/data/slam/image_retrieval/data_2/slamdata体验室 1
 /home/wankai/data/slam/image_retrieval/data_2/slamdata外茶水间 2
@@ -8,3 +5,7 @@
 /home/wankai/data/slam/image_retrieval/data_2/slamdata研究院八楼 4
 /home/wankai/data/slam/image_retrieval/data_2/slamdata计算视觉实验室 5
 /home/wankai/data/slam/image_retrieval/data_2/slamdata计算视觉应用实验室 6
+/home/wankai/data/slam/image_retrieval/data_2/slamdata801 7
+/home/wankai/data/slam/image_retrieval/data_2/slamdata803 8
+/home/wankai/data/slam/image_retrieval/data_2/slamdata805 9
+
