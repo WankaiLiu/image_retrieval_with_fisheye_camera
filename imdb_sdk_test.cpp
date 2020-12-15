@@ -126,7 +126,6 @@ int main(int argc, char *argv[])
     TicToc t_loadImage;
     double loadImageTimeCost, queryImageTimeCost;
     int counterDb = 0, counterQuery = 0;
-    int jump_cnt = 5;
     for(auto i = 0; i < file_id_list.size(); i++) {
         string base_path = file_id_list[i].first;
         int set_id = file_id_list[i].second;
@@ -159,7 +158,7 @@ int main(int argc, char *argv[])
 
     vector<pair<string,int>> file_id_list_query;
     LoadPathIdList(path_to_config_tlist, file_id_list_query);
-    unordered_map<int, int> counter1,counter2,counter3;
+    unordered_map<int, int> counter_total,counter_match,counter_failed,counter_wrong;
     TicToc t_queryImage;
     int count_cycle = 0;
     std::vector<std::string> query_vec;
@@ -179,13 +178,21 @@ int main(int argc, char *argv[])
 #endif
         }
         query_result_vec = query_list_vec(handler1, query_vec,"/home/wankai/data/slam/slamdata-Chicken/sunflower/cam0_NG2-sdm845.yaml");
+        counter_total[i] = 0;
+        counter_match[i] = 0;
+        counter_failed[i] = 0;
+        counter_wrong[i] = 0;
         for (int ni = 0; ni < imagesList.size(); ni += queryStep) {
             if(count_cycle != 10) {
                 query_vec.push_back(imagesList[ni]);
                 count_cycle++;
             }
             else{
+                counter_total[i]++;
                 query_result_vec = query_list_vec(handler1, query_vec,"/home/wankai/data/slam/slamdata-Chicken/sunflower/cam0_NG2-sdm845.yaml");
+                if(query_result_vec.empty()) counter_failed[i]++;
+                else if(query_result_vec[0].get_id == i) counter_match[i]++;
+                else counter_wrong[i]++;
                 for (int ret_i = 0; ret_i < query_result_vec.size(); ret_i++) {
                     cout << "querying result: " << query_result_vec[ret_i].get_id << "--" <<
                          query_result_vec[ret_i].confidence << endl;
@@ -200,7 +207,14 @@ int main(int argc, char *argv[])
         counterQuery = file_id_list_query.size();
 
     }
-
+    for (auto &id : counter_total){
+        std::cout << "***set id: " << id.first << endl;
+        std::cout << "***The match number is: " << counter_match[id.first] << endl;
+        std::cout << "***The failed number is: " << counter_failed[id.first] << endl;
+        std::cout << "***The wrong number is: " << counter_wrong[id.first] << endl;
+        std::cout << "***The total number is: " << counter_total[id.first] << endl;
+        std::cout << "***Success rate is: " << 1.0f * counter_match[id.first] / id.second << endl << endl;
+    }
     cout << "\n============3.Test erase set function======================" << endl;
     for(auto i = 0; i < file_id_list_query.size(); i++) {
 
@@ -251,17 +265,6 @@ int main(int argc, char *argv[])
         }
     }
 
-    for (auto &id : counter1){
-        std::cout << "***set id: " << id.first << endl;
-        std::cout << "***The match number is: " << counter2[id.first] << endl;
-        std::cout << "***The failed number is: " << counter3[id.first] << endl;
-        std::cout << "***The total number is: " << counter1[id.first] << endl;
-        std::cout << "***Success rate is: " << 1.0f * counter2[id.first] / id.second << endl << endl;
-    }
-    std::cout << "loadImageTimeCost(s) is: " << loadImageTimeCost / 1000 << endl;
-    std::cout << "queryImageTimeCost(s) is: " << queryImageTimeCost / 1000 << endl;
-    std::cout << "loadImageTotalNumber is: " << counterDb << endl;
-    std::cout << "queryImageTotalNumber is: " << counterQuery << endl;
-    std::cout << "avg loadImageTimeCost(ms) is: " << loadImageTimeCost / counterDb<< endl;
-    std::cout << "avg queryImageTimeCost(ms) is: " << queryImageTimeCost / counterQuery << endl;
+
+
 }
