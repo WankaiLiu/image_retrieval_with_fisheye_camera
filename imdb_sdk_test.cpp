@@ -66,36 +66,7 @@ void LoadPathIdList( const string &fileListsPath, vector<pair<string,int>> &file
     fTimes.close();
 }
 
-void LoadPathList( const string &fileListsPath, vector<string> &fileVec)
-{
-    fileVec.clear();
-    if(DEBUG_INFO) std::cout << "LoadImages(): " << fileListsPath << std::endl;
-    ifstream fTimes;
-    fTimes.open(fileListsPath.c_str());
-    while (!fTimes.eof())
-    {
-        string s;
-        getline(fTimes, s);
-        if (!s.empty())
-        {
-            stringstream ss;
-            ss << s;
-            if(DEBUG_INFO) std::cout << "load set: " << ss.str() << std::endl;
-            fileVec.push_back(ss.str());
-        }
-    }
-    fTimes.close();
-}
 
-#define IMG_WIDTH 640
-#define IMG_HEIGHT 400
-#define Q_LIST_NUM 10
-
-//   ./imdb_sdk_test \
-//   -voc=/home/what/disk/works/image_retrieval/config/loopC_vocdata.bin \
-//   -ptn=/home/what/disk/works/image_retrieval/config/loopC_pattern.yml \
-//   -dbase=/home/what/disk/works/image_retrieval/config/dlist2.txt \
-//   -tlist=/home/what/disk/works/image_retrieval/build2/query_list.txt \
 
 int main(int argc, char *argv[])
 {
@@ -145,12 +116,13 @@ int main(int argc, char *argv[])
     cout << "\nstart evaluating" << endl;
 
     int addStep = 27;//135;//
-    int queryStep = 1;//down sample FPS = 30/(queryStep+1) fps
+    int queryStep = 15;//down sample FPS = 30/(queryStep+1) fps
 
-    cout << "\n1.set up database" << endl;
+    cout << "\n============1.Set up database=================" << endl;
     void *handler1 = initDataBase(path_to_config_voc, path_to_config_ptn);
     vector<pair<string,int>> file_id_list;
     LoadPathIdList(path_to_config_dbase, file_id_list);
+    string path_to_config_dbaseQuery = path_to_config_tlist;
     TicToc t_loadImage;
     double loadImageTimeCost, queryImageTimeCost;
     int counterDb = 0, counterQuery = 0;
@@ -161,100 +133,124 @@ int main(int argc, char *argv[])
         string image_path = base_path + "/cam0";
         string timeStamps = base_path + "/loop.txt";
         vector<string> imagesList;
-        {//jump
-            bool skip = false;
-            try {
-                if(argc >= 6 && jump_cnt < argc) {
-                    for(int j = 5; j < argc; j++) {
-                        if(set_id == stoi(argv[j])) { //跳过set_id
-                            cout << ">>>>> SKIP set(id:"<< set_id << ")  " << base_path << endl;
-                            skip = true;
-                            jump_cnt++;
-                            break;
-                        }
-                    }
-                    if(skip) continue;
-                }
-            }
-            catch (...)
-            {}
-        }
         if (!image_path.empty()) {
             LoadImages(image_path, timeStamps, imagesList);
-            std::cout << "The size of image database list(id:"<< set_id << ") is " << imagesList.size() \
-                        << " downsample to :" << imagesList.size() / addStep << endl;
-            #ifdef DEBUGD
+            std::cout << "The size of image database list(id:" << set_id << ") is " << imagesList.size() \
+ << " downsample to :" << imagesList.size() / addStep << endl;
+#ifdef DEBUGD
             saveImagePath(handler1, i,imagesList);
-            #endif
+#endif
         }
         for (int ni = 0; ni < imagesList.size(); ni += addStep) {
-            #ifdef DEBUGD
-            addImage(handler1,imagesList[ni], set_id, ni);
-            #else
-            addImage(handler1,imagesList[ni], set_id);
-            #endif
+#ifdef DEBUGD
+            addImage(handler1,imagesList[ni], set_id, "/home/wankai/data/slam/slamdata-Chicken/sunflower/cam0_NG2-sdm845.yaml");
+#else
+            addImage(handler1, imagesList[ni], set_id,
+                     "/home/wankai/data/slam/slamdata-Chicken/sunflower/cam0_NG2-sdm845.yaml");
+#endif
         }
         counterDb += imagesList.size() / addStep;
     }
     loadImageTimeCost = t_loadImage.toc();
 
-    cout << "\n2.query" << endl;
-    file_id_list.clear();
-    string path_to_config_dbaseQuery = path_to_config_tlist;
-    LoadPathIdList(path_to_config_tlist, file_id_list);
+    cout << "\n============2.Start to query======================" << endl;
+
+
+
+    vector<pair<string,int>> file_id_list_query;
+    LoadPathIdList(path_to_config_tlist, file_id_list_query);
     unordered_map<int, int> counter1,counter2,counter3;
     TicToc t_queryImage;
-    char image_list_bin[IMG_WIDTH*IMG_HEIGHT*Q_LIST_NUM];
-    for(auto i = 0; i < file_id_list.size(); i++) {
-        string base_path = file_id_list[i].first;
-        int qr_id = file_id_list[i].second;
-        char image_data[IMG_WIDTH*IMG_HEIGHT*Q_LIST_NUM];
-        int add_cycle = 0;
-        cout << "querying: " << base_path << endl;
-        
-        FILE* fp = fopen(base_path.c_str(),"rb");
-        if(fp)
-        {
-            fread(image_list_bin,sizeof(char),IMG_WIDTH*IMG_HEIGHT*Q_LIST_NUM,fp);
-            fclose(fp);
-            fp = NULL;
+    int count_cycle = 0;
+    std::vector<std::string> query_vec;
+    std::vector<query_result> query_result_vec;
+    for(auto i = 0; i < file_id_list_query.size(); i++) {
+        string base_path = file_id_list_query[i].first;
+        int set_id = file_id_list_query[i].second;
+        string image_path = base_path + "/cam0";
+        string timeStamps = base_path + "/loop.txt";
+        vector<string> imagesList;
+        if (!image_path.empty()) {
+            LoadImages(image_path, timeStamps, imagesList);
+            std::cout << "The size of image query list(id:"<< set_id << ") is " << imagesList.size() \
+                        << " downsample to :" << imagesList.size() / queryStep << endl;
+#ifdef DEBUGD
+            saveImagePath(handler1, i,imagesList);
+#endif
         }
-        else{
-            cout << "file " << base_path <<"does not exist\n";
-            return -1;
-        }
-
-        TicToc tquery;
-        #ifdef DEBUGD
-        query_result qr = query_list(handler1, i, image_list_bin, IMG_WIDTH, IMG_HEIGHT, Q_LIST_NUM);
-        #else
-        query_result qr = query_list(handler1, image_list_bin, IMG_WIDTH, IMG_HEIGHT, Q_LIST_NUM);
-        #endif
-        int get_id = qr.get_id;
-        double confidence = qr.confidence;
-        counter1[qr_id]++;//包含了所有的ID及其对应的总count
-        if(get_id == qr_id) counter2[qr_id]++;
-        if(get_id == -1) counter3[qr_id]++;
-        std::cout << "The setid and result is: " << qr_id << " - " << get_id << "(" << confidence << "),  cost time:" << tquery.toc() <<"ms\n" << endl;
-
-        counterQuery = file_id_list.size();
-    }
-    // free(image_data);
-    queryImageTimeCost = t_loadImage.toc();
-    /*try {
-        if (argc >= 2) {
-            for (int j = 1; j < argc; j++) {
-                int index = stoi(argv[j]);
-                std::cout << "---***set id: " << index << endl;
-                std::cout << "---***The match number is: " << counter2[index] << endl;
-                std::cout << "---***The failed number is: " << counter3[index] << endl;
-                std::cout << "---***The total number is: " << counter1[index] << endl;
-                std::cout << "---***Success rate is: " << 1.0f * counter2[index] / counter1[index] << endl << endl;
+        query_result_vec = query_list_vec(handler1, query_vec,"/home/wankai/data/slam/slamdata-Chicken/sunflower/cam0_NG2-sdm845.yaml");
+        for (int ni = 0; ni < imagesList.size(); ni += queryStep) {
+            if(count_cycle != 10) {
+                query_vec.push_back(imagesList[ni]);
+                count_cycle++;
+            }
+            else{
+                query_result_vec = query_list_vec(handler1, query_vec,"/home/wankai/data/slam/slamdata-Chicken/sunflower/cam0_NG2-sdm845.yaml");
+                for (int ret_i = 0; ret_i < query_result_vec.size(); ret_i++) {
+                    cout << "querying result: " << query_result_vec[ret_i].get_id << "--" <<
+                         query_result_vec[ret_i].confidence << endl;
+                }
+                query_vec.clear();
+                count_cycle = 0;
             }
         }
+        query_vec.clear();
+        count_cycle = 0;
+
+        counterQuery = file_id_list_query.size();
+
     }
-    catch (...)
-    {}*/
+
+    cout << "\n============3.Test erase set function======================" << endl;
+    for(auto i = 0; i < file_id_list_query.size(); i++) {
+
+        //CLEAR DATASET
+
+        string base_path = file_id_list_query[i].first;
+        int qr_id = file_id_list_query[i].second;
+
+        TicToc tquery;
+        bool status = erase_set(handler1, qr_id);
+        cout << "erase current set: " << qr_id << " , with status" << status << endl;
+        int set_id = file_id_list_query[i].second;
+        string image_path = base_path + "/cam0";
+        string timeStamps = base_path + "/loop.txt";
+        vector<string> imagesList;
+        if (!image_path.empty()) {
+            LoadImages(image_path, timeStamps, imagesList);
+            std::cout << "The size of image query list(id:"<< set_id << ") is " << imagesList.size() \
+                        << " downsample to :" << imagesList.size() / queryStep << endl;
+#ifdef DEBUGD
+            saveImagePath(handler1, i,imagesList);
+#endif
+        }
+        query_result_vec = query_list_vec(handler1, query_vec,"/home/wankai/data/slam/slamdata-Chicken/sunflower/cam0_NG2-sdm845.yaml");
+        for (int ni = 0; ni < imagesList.size(); ni += queryStep) {
+            if(count_cycle != 10) {
+                query_vec.push_back(imagesList[ni]);
+                count_cycle++;
+            }
+            else{
+                query_result_vec = query_list_vec(handler1, query_vec,"/home/wankai/data/slam/slamdata-Chicken/sunflower/cam0_NG2-sdm845.yaml");
+                for (int ret_i = 0; ret_i < query_result_vec.size(); ret_i++) {
+                    cout << "querying result: " << query_result_vec[ret_i].get_id << "--" <<
+                         query_result_vec[ret_i].confidence << endl;
+                }
+                query_vec.clear();
+                count_cycle = 0;
+            }
+        }
+        query_vec.clear();
+        count_cycle = 0;
+        for (int ni = 0; ni < imagesList.size(); ni += addStep) {
+#ifdef DEBUGD
+            addImage(handler1,imagesList[ni], qr_id, ni);
+#else
+            addImage(handler1,imagesList[ni], qr_id,"/home/wankai/data/slam/slamdata-Chicken/sunflower/cam0_NG2-sdm845.yaml");
+#endif
+        }
+    }
+
     for (auto &id : counter1){
         std::cout << "***set id: " << id.first << endl;
         std::cout << "***The match number is: " << counter2[id.first] << endl;
