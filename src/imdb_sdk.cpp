@@ -5,7 +5,7 @@
 #include "ImageDatabase.h"
 #include "imdb_sdk.h"
 #include "tic_toc.h"
-#define VERTION_DATE 20201210
+#define VERTION_DATE 20201215
 
 API_EXPORT void* initDataBase(string voc_path, std::string pattern_file)
 {

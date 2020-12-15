@@ -12,7 +12,7 @@
 #define DEBUG_INFO_Q 1
 #define DEBUG_IMG 0
 #define MIN_SCORE 0.1
-#define MIN_FUNDAMENTAL_THRESHOLD 40.f
+#define MIN_FUNDAMENTAL_THRESHOLD 25.f
 
 
 struct db_info
