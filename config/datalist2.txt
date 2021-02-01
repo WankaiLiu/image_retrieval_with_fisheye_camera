@@ -8,4 +8,19 @@
 /home/wankai/data/slam/image_retrieval/data_2/slamdata801 7
 /home/wankai/data/slam/image_retrieval/data_2/slamdata803 8
 /home/wankai/data/slam/image_retrieval/data_2/slamdata805 9
+/home/wankai/data/slam/image_retrieval/0122_fz_14/slamdata_0122141704_A608 10
+/home/wankai/data/slam/image_retrieval/0122_fz_14/slamdata_0122141901_A609 11	
+/home/wankai/data/slam/image_retrieval/0122_fz_14/slamdata_0122142144_A610 12
+/home/wankai/data/slam/image_retrieval/0122_fz_14/slamdata_0122142433_A606 13
+/home/wankai/data/slam/image_retrieval/0122_fz_14/slamdata_0122142715_A603 14
+/home/wankai/data/slam/image_retrieval/0122_fz_14/slamdata_0122143223_A601 15
+/home/wankai/data/slam/image_retrieval/0122_fz_14/slamdata_0122143651_A611 16
+/home/wankai/data/slam/image_retrieval/0122_fz_14/slamdata_0122143830_公共区1 17
+/home/wankai/data/slam/image_retrieval/0122_fz_14/slamdata_0122144015_公共区2 18
+/home/wankai/data/slam/image_retrieval/0122_fz_14/slamdata_0122144211_A605 19
+/home/wankai/data/slam/image_retrieval/0122_fz_14/slamdata_0122144335_打印机室 20
+/home/wankai/data/slam/image_retrieval/0122_fz_14/slamdata_0122144504_工作区域 21
+/home/wankai/data/slam/image_retrieval/0122_fz_14/slamdata_0122144633_茶水间 22
+/home/wankai/data/slam/image_retrieval/0122_fz_14/slamdata_0122144757_靠卫生间左侧走廊 23
+
 
