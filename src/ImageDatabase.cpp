@@ -9,7 +9,7 @@
 #include <thread>
 
 #include <opencv2/features2d/features2d.hpp>
-
+int ext_query_id;
 ImageDatabase::ImageDatabase(string voc_path, std::string _pattern_file){
     BriefVocabulary* voc = new BriefVocabulary(voc_path);
     this->db.setVocabulary(*voc, true, 0);
@@ -174,7 +174,7 @@ static void reduceVector(vector<Derived> &v, vector<uchar> status)
 }
 void concatImageAndDraw(const cv::Mat& cur_image, vector<cv::Point2f>& matched_points_cur,
                         const cv::Mat& old_image, vector<cv::Point2f>& matched_points_old,
-                        vector<cv::Scalar>& colors, string path, bool draw_line)
+                        vector<cv::Scalar>& colors, string path, bool draw_line, bool save_file = false)
 {
 //    cout << "call concatImageAndDraw " << path << endl;
     cv::Mat image_out_tmp,image_out;
@@ -194,7 +194,12 @@ void concatImageAndDraw(const cv::Mat& cur_image, vector<cv::Point2f>& matched_p
         }
 //        if(DEBUG_INFO_Q) cout << endl;
     }
-    cv::imshow(path, image_out);
+    if(save_file) {
+        cv::imwrite(path, image_out);
+    }
+    else {
+        cv::imshow(path, image_out);
+    }
     cv::waitKey(190);
 
 }
@@ -296,8 +301,8 @@ void ImageDatabase::thread_query(const cv::Mat &img, const void *camera_ptr, int
                         cv::Scalar color(rng.uniform(0, 255), rng.uniform(0, 255), rng.uniform(0, 255));
                         matched_colors.push_back(color);
                     }
-                    concatImageAndDraw(image_list[i], matched_2d_cur, imageQr, matched_2d_old, matched_colors,
-                                       "matched_image", true);
+//                    concatImageAndDraw(img, matched_2d_cur, imageQr, matched_2d_old, matched_colors,
+//                                       "matched_image", true);
 
 #endif
             FundmantalMatrixRANSAC(matched_2d_cur_norm, matched_2d_old_norm, status);
@@ -312,9 +317,11 @@ void ImageDatabase::thread_query(const cv::Mat &img, const void *camera_ptr, int
             vote_array_total[imageset_id[ret[j].Id].id] += matched_2d_cur_norm.size();
             mtx_array.unlock();
 #if DEBUG_IMG
-            concatImageAndDraw(image_list[i], matched_2d_cur, imageQr, matched_2d_old, matched_colors,
-                                   "fundransac_matched_image", true);
-
+            int ret_id = imageset_id[ret[j].Id].id;
+            string savepath = "./debug_img/" + to_string(ext_query_id) + "--" + to_string(ret_id) + ".jpg";
+            cout << "Save image path : " << savepath << endl;
+            concatImageAndDraw(img, matched_2d_cur, imageQr, matched_2d_old, matched_colors,
+                                   savepath, true, true);
 #endif
         }
 
@@ -517,8 +524,14 @@ std::vector<pair<int, double>> ImageDatabase::query_list(const std::vector<cv::M
                         cv::Scalar color(rng.uniform(0, 255), rng.uniform(0, 255), rng.uniform(0, 255));
                         matched_colors.push_back(color);
                     }
+                int ret_id = imageset_id[ret[j].Id].id;
+                string savepath = "./debug_img/Brief_" + to_string(ext_query_id) + "--" + to_string(ret_id)
+                        + "_" + to_string(ret[j].Id) + ".jpg";
+                if(ext_query_id != ret_id) {
+                    cout << "------ image path :" << savepath << endl;
                     concatImageAndDraw(image_list[i], matched_2d_cur, imageQr, matched_2d_old, matched_colors,
-                                       "matched_image", true);
+                                       savepath, true, true);
+                }
 
 #endif
                 FundmantalMatrixRANSAC(matched_2d_cur_norm, matched_2d_old_norm, status);
@@ -531,8 +544,11 @@ std::vector<pair<int, double>> ImageDatabase::query_list(const std::vector<cv::M
                 vote_array_fun[i][imageset_id[ret[j].Id].id] += matched_2d_cur_norm.size();
                 vote_array_total[imageset_id[ret[j].Id].id] += matched_2d_cur_norm.size();
 #if DEBUG_IMG
+                savepath = "./debug_img/FunRan" + to_string(ext_query_id) + "--" + to_string(ret_id)
+                        + "_" + to_string(ret[j].Id) + ".jpg";
+                cout << "------ image path :" << savepath << endl;
                 concatImageAndDraw(image_list[i], matched_2d_cur, imageQr, matched_2d_old, matched_colors,
-                                   "fundransac_matched_image", true);
+                                   savepath, true, true);
 
 #endif
             }
@@ -577,8 +593,9 @@ std::vector<pair<int, double>> ImageDatabase::query_list(const std::vector<cv::M
 
 }
 #if DEBUG_IMG
-void ImageDatabase::addImagePath(const string &img_path) {
+void ImageDatabase::addImagePath(const string &img_path, const int set_id) {
     image_path_vec.push_back(img_path);
+    image_setid_vec.push_back(set_id);
 }
 #endif
 

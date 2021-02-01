@@ -10,8 +10,13 @@
 #define DEBUG_INFO 0
 #define DEBUG 0
 #define DEBUG_INFO_Q 1
-#define DEBUG_IMG 0
-#define MIN_SCORE 0.1
+
+#ifdef DEBUG_IMG_CMAKE
+    #define DEBUG_IMG 1
+#else
+    #define DEBUG_IMG 0
+#endif
+#define MIN_SCORE 0.07
 #define MIN_FUNDAMENTAL_THRESHOLD 25.f
 
 
@@ -36,7 +41,7 @@ public:
     int get_dbsize();
     BriefDatabase db;
 #if DEBUG_IMG
-    void addImagePath(const string &img_path);
+    void addImagePath(const string &img_path, const int set_id);
 #endif
 
 private:
@@ -45,6 +50,7 @@ private:
     std::vector<db_info> imageset_id;
 #if DEBUG_IMG
     std::vector<string> image_path_vec;
+    std::vector<int> image_setid_vec;
 #endif
     std::string pattern_file;
     DBoW2::QueryResults ret;

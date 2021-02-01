@@ -8,7 +8,8 @@ using namespace std;
 #include "imdb_sdk.h"
 #include <opencv2/opencv.hpp>
 #define DEBUG_INFO 0
-
+#define DEBUG_ERASE_SET 0
+extern int ext_query_id;
 void LoadImages(const string &strImagePath, const string &strTimesStampsPath,
                 vector<string> &strImagesFileNames)
 {
@@ -70,8 +71,8 @@ void LoadPathIdList( const string &fileListsPath, vector<pair<string,int>> &file
 
 int main(int argc, char *argv[])
 {
-    cv::CommandLineParser parser(argc, argv, "{voc||}{ptn||}{dbase||}{tlist||}");
 
+    cv::CommandLineParser parser(argc, argv, "{voc||}{ptn||}{dbase||}{tlist||}");
     std::string path_to_config_voc;
     if (parser.has("voc"))  path_to_config_voc = parser.get<string>("voc");
     if(path_to_config_voc.empty())
@@ -177,11 +178,12 @@ int main(int argc, char *argv[])
             saveImagePath(handler1, i,imagesList);
 #endif
         }
-        query_result_vec = query_list_vec(handler1, query_vec,"/home/wankai/data/slam/slamdata-Chicken/sunflower/cam0_NG2-sdm845.yaml");
+//        query_result_vec = query_list_vec(handler1, query_vec,"/home/wankai/data/slam/slamdata-Chicken/sunflower/cam0_NG2-sdm845.yaml");
         counter_total[i] = 0;
         counter_match[i] = 0;
         counter_failed[i] = 0;
         counter_wrong[i] = 0;
+        cout << "Query-: start to query set: " << i << ", set size = " << imagesList.size() / queryStep << endl;
         for (int ni = 0; ni < imagesList.size(); ni += queryStep) {
             if(count_cycle != 10) {
                 query_vec.push_back(imagesList[ni]);
@@ -189,13 +191,17 @@ int main(int argc, char *argv[])
             }
             else{
                 counter_total[i]++;
+                ext_query_id = i;
                 query_result_vec = query_list_vec(handler1, query_vec,"/home/wankai/data/slam/slamdata-Chicken/sunflower/cam0_NG2-sdm845.yaml");
                 if(query_result_vec.empty()) counter_failed[i]++;
                 else if(query_result_vec[0].get_id == i) counter_match[i]++;
                 else counter_wrong[i]++;
                 for (int ret_i = 0; ret_i < query_result_vec.size(); ret_i++) {
-                    cout << "querying result: " << query_result_vec[ret_i].get_id << "--" <<
+                    cout << "querying result, ref_id-return_id: " << i << " -- " << query_result_vec[ret_i].get_id << " ; score: " <<
                          query_result_vec[ret_i].confidence << endl;
+                }
+                if(query_result_vec.empty()) {
+                    cout << "querying result, ref_id-return_id: " << i << " -- " << " query_failed!; score: " << endl;
                 }
                 query_vec.clear();
                 count_cycle = 0;
@@ -215,8 +221,9 @@ int main(int argc, char *argv[])
         std::cout << "***The total number is: " << counter_total[id.first] << endl;
         std::cout << "***Success rate is: " << 1.0f * counter_match[id.first] / id.second << endl << endl;
     }
+
     cout << "\n============3.Test erase set function======================" << endl;
-    for(auto i = 0; i < file_id_list_query.size(); i++) {
+    for(auto i = 0; i < file_id_list_query.size() * DEBUG_ERASE_SET; i++) {
 
         //CLEAR DATASET
 

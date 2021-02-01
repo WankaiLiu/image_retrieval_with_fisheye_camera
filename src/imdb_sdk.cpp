@@ -36,7 +36,7 @@ void addImage(void* handler, const string &img_path, int set_id, const std::stri
         cv::Mat image = cv::imread(img_path, CV_LOAD_IMAGE_UNCHANGED);
         imdb->addImage(image, set_id);
 #if DEBUG_IMG
-        imdb->addImagePath(img_path);
+        imdb->addImagePath(img_path, set_id);
 #endif
         cout << "Time cost of adding image: " << timer.toc() << " ms. " << endl;
         return;
@@ -82,7 +82,11 @@ std::vector<query_result> query_list_vec(void* handler, const std::vector<std::s
         return qr_vec;
     }
     try {
+#ifdef MULTITHREAD_QUERY_CMAKE
         std::vector<pair<int, double>> id_query_list = imdb->query_list_multithread(images);
+#else
+        std::vector<pair<int, double>> id_query_list = imdb->query_list(images);
+#endif
         for(size_t j = 0; j < id_query_list.size(); j++) {
             query_result qr;
             qr.get_id = id_query_list[j].first;
